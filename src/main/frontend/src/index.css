@@ -1,0 +1,32 @@
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  margin: 2rem auto;
+  max-width: 44rem;
+  padding: 0 1rem;
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+input {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 1.25rem;
+}
+
+.meta {
+  color: #666;
+  font-size: 0.875rem;
+}
