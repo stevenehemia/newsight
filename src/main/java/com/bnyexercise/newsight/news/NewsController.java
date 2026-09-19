@@ -12,10 +12,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 public class NewsController {
 
-    private final HackerNewsSource source;
+    private final NewsService newsService;
 
-    NewsController(HackerNewsSource source) {
-        this.source = source;
+    NewsController(NewsService newsService) {
+        this.newsService = newsService;
     }
 
     @GetMapping("/api/news/search")
@@ -23,6 +23,6 @@ public class NewsController {
         if (!StringUtils.hasText(q)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must not be blank");
         }
-        return source.search(q);
+        return newsService.search(q);
     }
 }

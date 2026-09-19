@@ -23,11 +23,11 @@ class NewsControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockitoBean private HackerNewsSource source;
+    @MockitoBean private NewsService newsService;
 
     @Test
     void returnsArticlesForQuery() throws Exception {
-        given(source.search("spring"))
+        given(newsService.search("spring"))
                 .willReturn(
                         List.of(
                                 new Article(
@@ -48,7 +48,7 @@ class NewsControllerTest {
 
     @Test
     void returnsEmptyArrayWhenNothingFound() throws Exception {
-        given(source.search(anyString())).willReturn(List.of());
+        given(newsService.search(anyString())).willReturn(List.of());
 
         mockMvc.perform(get("/api/news/search").param("q", "zzzznomatches"))
                 .andExpect(status().isOk())

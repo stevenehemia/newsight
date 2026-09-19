@@ -17,7 +17,7 @@ import org.springframework.web.client.RestClient;
  * {@code objectID}.
  */
 @Component
-public class HackerNewsSource {
+public class HackerNewsSource implements NewsSource {
 
     private static final String SOURCE_NAME = "Hacker News";
     private static final String ITEM_URL = "https://news.ycombinator.com/item?id=";
@@ -28,6 +28,7 @@ public class HackerNewsSource {
         this.client = builder.baseUrl("https://hn.algolia.com/api/v1").build();
     }
 
+    @Override
     public List<Article> search(String query) {
         SearchResponse response =
                 client.get()
