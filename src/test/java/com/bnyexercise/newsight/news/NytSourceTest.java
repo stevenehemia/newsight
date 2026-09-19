@@ -48,7 +48,7 @@ class NytSourceTest {
         server.expect(requestTo(startsWith(SEARCH_URL)))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(queryParam("q", "climate"))
-                .andExpect(queryParam("sort", "newest"))
+                .andExpect(queryParam("sort", "relevance"))
                 .andExpect(queryParam("api-key", KEY))
                 .andRespond(withJson(response("""
                         {

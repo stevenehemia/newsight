@@ -17,6 +17,9 @@ import org.springframework.web.client.RestClientException;
 /**
  * Searches the New York Times Article Search API.
  *
+ * <p>Asks NYT for its most relevant matches, over its whole archive, with no date limit;
+ * {@link NewsService} then sorts the merged results by date.
+ *
  * <p>Needs {@code NYT_API_KEY}; without it the source is switched off and returns nothing, so the
  * app still starts in CI and for anyone without a key. The key can only be sent as a query
  * parameter, so it must never be logged with the request URL.
@@ -50,7 +53,7 @@ public class NytSource implements NewsSource {
                     client.get()
                             .uri(uri -> uri.path("/articlesearch.json")
                                     .queryParam("q", "{q}")
-                                    .queryParam("sort", "newest")
+                                    .queryParam("sort", "relevance")
                                     .queryParam("api-key", "{key}")
                                     .build(query, apiKey))
                             .retrieve()
