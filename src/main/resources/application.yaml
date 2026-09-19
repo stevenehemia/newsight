@@ -7,3 +7,9 @@ spring:
       # sources still answer instead of the whole search waiting on it.
       connect-timeout: 3s
       read-timeout: 5s
+
+newsight:
+  sources:
+    nyt:
+      # From the NYT_API_KEY environment variable. Empty switches the NYT source off.
+      api-key: ${NYT_API_KEY:}
