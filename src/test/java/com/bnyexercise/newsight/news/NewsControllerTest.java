@@ -57,6 +57,14 @@ class NewsControllerTest {
     }
 
     @Test
+    void returnsServiceUnavailableWhenEverySourceFails() throws Exception {
+        given(newsService.search(anyString())).willThrow(new NewsUnavailableException());
+
+        mockMvc.perform(get("/api/news/search").param("q", "spring"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
     void rejectsBlankQuery() throws Exception {
         mockMvc.perform(get("/api/news/search").param("q", "   ")).andExpect(status().isBadRequest());
     }
