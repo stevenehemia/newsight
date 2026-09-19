@@ -1,6 +1,7 @@
 package com.bnyexercise.newsight.news;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
@@ -110,6 +111,19 @@ class HackerNewsSourceTest {
                         """));
 
         assertThat(source.search("zzzznomatches")).isEmpty();
+    }
+
+    @Test
+    void encodesSpecialCharactersInTheQuery() {
+        // "AT&T" sent unencoded would split into query=AT and a stray T= parameter.
+        server.expect(requestTo(containsString("query=AT%26T")))
+                .andRespond(withJson("""
+                        {"hits": []}
+                        """));
+
+        source.search("AT&T");
+
+        server.verify();
     }
 
     private static ResponseCreator withJson(String body) {
