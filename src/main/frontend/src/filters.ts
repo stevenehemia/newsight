@@ -90,16 +90,20 @@ export function sourceOptions(articles: Article[], filters: Filters, now = new D
 }
 
 /**
- * Busiest first, ties broken alphabetically. Guardian sections alone can produce a dozen values
- * for one search, most with a single article, so the useful ones have to come first.
+ * Busiest first, ties broken alphabetically, except that "Uncategorised" always comes last however
+ * many articles it holds: it is the absence of a topic, not a topic, and neither Hacker News nor
+ * GNews has sections at all — so ranking it by size would park the least informative chip in front
+ * of every real one.
  */
 export function categoryOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesDate(article, filters, now),
   )
-  return optionsFor(articles, allowed, categoryOf).sort(
-    (a, b) => b.count - a.count || a.value.localeCompare(b.value),
-  )
+  return optionsFor(articles, allowed, categoryOf).sort((a, b) => {
+    if (a.value === UNCATEGORISED) return 1
+    if (b.value === UNCATEGORISED) return -1
+    return b.count - a.count || a.value.localeCompare(b.value)
+  })
 }
 
 export const ALL_TIME_ID = 'all'

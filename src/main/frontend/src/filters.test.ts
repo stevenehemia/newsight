@@ -89,8 +89,22 @@ describe('facet counts', () => {
   it('lists categories busiest first, ties broken alphabetically', () => {
     expect(categoryOptions(ARTICLES, NO_FILTERS, NOW)).toEqual([
       { value: 'Climate', count: 2 },
-      { value: 'Uncategorised', count: 2 },
       { value: 'U.S.', count: 1 },
+      // Last despite tying Climate on 2: it is the absence of a topic, not a topic.
+      { value: 'Uncategorised', count: 2 },
+    ])
+  })
+
+  it('keeps Uncategorised last even when it is by far the biggest group', () => {
+    const uncategorised = Array.from({ length: 20 }, (_, i) =>
+      article(`HN story ${i}`, 'Hacker News', null, '2026-09-18T09:00:00Z'),
+    )
+
+    const options = categoryOptions([...uncategorised, YESTERDAY], NO_FILTERS, NOW)
+
+    expect(options).toEqual([
+      { value: 'U.S.', count: 1 },
+      { value: 'Uncategorised', count: 20 },
     ])
   })
 
@@ -99,8 +113,8 @@ describe('facet counts', () => {
 
     expect(categoryOptions(ARTICLES, selected, NOW)).toEqual([
       { value: 'U.S.', count: 1 },
-      { value: 'Uncategorised', count: 1 },
       { value: 'Climate', count: 0 },
+      { value: 'Uncategorised', count: 1 },
     ])
 
     const shown = applyFilters(ARTICLES, selected, NOW).length
