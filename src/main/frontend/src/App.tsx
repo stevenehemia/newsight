@@ -25,21 +25,29 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
 
+  // Whitespace only is not a search. The backend rejects it with a 400, but the user should never
+  // get that far: a rejection reads like a fault, when the answer is just "type something".
+  const trimmed = query.trim()
+  const canSearch = trimmed.length > 0
+
   async function search(event: FormEvent) {
     event.preventDefault()
+    if (!canSearch) return // belt and braces; the button is disabled too
     // Drop any search still in flight: without this, a slow first response can arrive after a
     // faster second one and overwrite it with results for a query the user has moved on from.
     inFlight.current?.abort()
     const controller = new AbortController()
     inFlight.current = controller
 
-    setSearched(query)
+    setSearched(trimmed)
     setFilters(NO_FILTERS) // the old filters belong to the old results
     setResults(null) // clear the previous results rather than showing them under "Searching…"
     setFailed(false)
     setLoading(true)
     try {
-      const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`, {
+      // Trimmed: surrounding spaces are never meaningful to a search, and sending them would put
+      // them in the "No articles found for …" message too.
+      const response = await fetch(`/api/news/search?q=${encodeURIComponent(trimmed)}`, {
         signal: controller.signal,
       })
       setFailed(!response.ok)
@@ -84,9 +92,10 @@ export default function App() {
           placeholder="Search news"
           aria-label="Search news"
         />
-        {/* Disabled while a search runs, to stop double submits. The label stays "Search": the
-            results area already says "Searching…", and saying it twice is noise. */}
-        <button type="submit" disabled={loading}>
+        {/* Disabled while a search runs, to stop double submits, and while the box is empty, so a
+            blank search cannot be sent. The label stays "Search": the results area already says
+            "Searching…", and saying it twice is noise. */}
+        <button type="submit" disabled={loading || !canSearch}>
           Search
         </button>
       </form>
