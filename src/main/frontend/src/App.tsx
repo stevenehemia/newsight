@@ -132,10 +132,12 @@ function FilterGroup({
           <button
             key={option.value}
             type="button"
+            // The selected look is driven by aria-pressed in CSS, so the styling and the state
+            // screen readers announce cannot disagree.
             aria-pressed={isSelected}
             // Nothing left to show, and not currently selected: leave it visible but unusable.
             disabled={option.count === 0 && !isSelected}
-            className={isSelected ? 'chip chip-on' : 'chip'}
+            className="chip"
             onClick={() => onToggle(option.value, option.id)}
           >
             {option.value} ({option.count})
