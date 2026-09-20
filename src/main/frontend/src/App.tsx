@@ -140,10 +140,12 @@ export default function App() {
         ))}
       </ul>
 
-      {/* NYT's terms require their logo, linked to developer.nytimes.com, on any page showing
-          their content. Add it here before deploying publicly. */}
+      {/* Before deploying publicly this needs two logos: NYT's, linked to developer.nytimes.com,
+          and a "Powered by The Guardian" logo. Both terms require them on any page showing their
+          content. */}
       <footer className="attribution">
-        News from Hacker News and The New York Times. Headlines link to the original articles.
+        News from Hacker News, The New York Times and The Guardian. Headlines link to the original
+        articles.
       </footer>
     </div>
   )
