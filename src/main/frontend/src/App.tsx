@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import logo from './assets/newsight.png'
 import {
   applyFilters,
   categoryOptions,
@@ -43,14 +44,23 @@ export default function App() {
   )
 
   return (
-    <main>
-      <h1>Newsight</h1>
+    <div className="page">
+      <header className="masthead">
+        <div className="brand">
+          {/* Decorative: the name is right beside it, so a screen reader reading
+              "Newsight logo, Newsight" would just be noise. */}
+          <img className="logo" src={logo} alt="" />
+          <h1>Newsight</h1>
+        </div>
+        <p className="tagline">Bringing news together, delivering insights faster.</p>
+      </header>
 
-      <form onSubmit={search}>
+      <form className="search" onSubmit={search}>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search news"
+          aria-label="Search news"
         />
         <button type="submit">Search</button>
       </form>
@@ -85,38 +95,57 @@ export default function App() {
               setFilters({ ...filters, datePreset: filters.datePreset === id ? null : (id ?? null) })
             }
           />
-
-          <p className="summary">
-            Showing {visible.length} of {articles.length}
-            {hasAnyFilter(filters) && (
-              <button type="button" className="link" onClick={() => setFilters(NO_FILTERS)}>
-                Clear filters
-              </button>
-            )}
-          </p>
         </section>
+      )}
+
+      {/* Caption for the results rather than another filter control, so it sits outside the panel.
+          aria-live means a screen reader announces the new count when a chip is clicked; without
+          it, filtering is silent. */}
+      {articles.length > 0 && (
+        <p className="summary" aria-live="polite">
+          Showing {visible.length} of {articles.length}
+          {hasAnyFilter(filters) && (
+            <button type="button" className="link" onClick={() => setFilters(NO_FILTERS)}>
+              Clear filters
+            </button>
+          )}
+        </p>
       )}
 
       {message && <p className="empty">{message}</p>}
 
-      <ul>
+      <ul className="results">
         {visible.map((article, index) => (
-          <li key={`${article.url}-${index}`}>
-            <a href={article.url} target="_blank" rel="noreferrer">
-              {article.title}
-            </a>
+          <li className="card" key={`${article.url}-${index}`}>
+            <h2>
+              <a href={article.url} target="_blank" rel="noreferrer">
+                {article.title}
+              </a>
+            </h2>
             <div className="meta">
-              {article.source}
-              {article.category && ` · ${article.category}`}
-              {article.author && ` · ${article.author}`}
-              {` · ${new Date(article.publishedAt).toLocaleDateString()}`}
+              {/* filter(Boolean) drops the fields a source does not provide, so there are never
+                  two dots in a row or a trailing one. */}
+              {[
+                article.source,
+                article.category,
+                article.author,
+                new Date(article.publishedAt).toLocaleDateString(),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </div>
             {/* Hacker News link posts have no body text, so summary is usually null. */}
             {article.summary && <p>{article.summary}</p>}
           </li>
         ))}
       </ul>
-    </main>
+
+      {/* NYT's terms require their logo, linked to developer.nytimes.com, on any page showing
+          their content. Add it here before deploying publicly. */}
+      <footer className="attribution">
+        News from Hacker News and The New York Times. Headlines link to the original articles.
+      </footer>
+    </div>
   )
 }
 
@@ -136,24 +165,26 @@ function FilterGroup({
   return (
     <div className="filter-group">
       <span className="filter-label">{label}</span>
-      {options.map((option) => {
-        const isSelected = selected.includes(option.value)
-        return (
-          <button
-            key={option.value}
-            type="button"
-            // The selected look is driven by aria-pressed in CSS, so the styling and the state
-            // screen readers announce cannot disagree.
-            aria-pressed={isSelected}
-            // Nothing left to show, and not currently selected: leave it visible but unusable.
-            disabled={option.count === 0 && !isSelected}
-            className="chip"
-            onClick={() => onToggle(option.value, option.id)}
-          >
-            {option.value} ({option.count})
-          </button>
-        )
-      })}
+      <div className="filter-options">
+        {options.map((option) => {
+          const isSelected = selected.includes(option.value)
+          return (
+            <button
+              key={option.value}
+              type="button"
+              // The selected look is driven by aria-pressed in CSS, so the styling and the state
+              // screen readers announce cannot disagree.
+              aria-pressed={isSelected}
+              // Nothing left to show, and not currently selected: leave it visible but unusable.
+              disabled={option.count === 0 && !isSelected}
+              className="chip"
+              onClick={() => onToggle(option.value, option.id)}
+            >
+              {option.value} ({option.count})
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
