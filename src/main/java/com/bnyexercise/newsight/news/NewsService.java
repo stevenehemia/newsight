@@ -28,12 +28,12 @@ public class NewsService {
         this.sources = List.copyOf(sources);
     }
 
-    public SearchResults search(SearchCriteria criteria) {
+    public SearchResults search(String query) {
         List<Article> articles = new ArrayList<>();
         List<SearchResults.SourceNote> unavailable = new ArrayList<>();
         for (NewsSource source : sources) {
             try {
-                articles.addAll(source.search(criteria));
+                articles.addAll(source.search(query));
             } catch (NewsSourceException ex) {
                 unavailable.add(new SearchResults.SourceNote(source.name(), ex.reason()));
                 log.warn("{} failed: {}", source.name(), ex.getMessage());

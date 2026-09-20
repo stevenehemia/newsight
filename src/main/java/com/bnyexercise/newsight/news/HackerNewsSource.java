@@ -35,8 +35,7 @@ public class HackerNewsSource implements NewsSource {
     }
 
     @Override
-    public List<Article> search(SearchCriteria criteria) {
-        String query = criteria.query();
+    public List<Article> search(String query) {
         SearchResponse response;
         try {
             response =

@@ -55,7 +55,7 @@ class HackerNewsSourceTest {
                         }]}
                         """));
 
-        List<Article> articles = source.search(SearchCriteria.keyword("spring"));
+        List<Article> articles = source.search("spring");
 
         assertThat(articles)
                 .containsExactly(
@@ -83,7 +83,7 @@ class HackerNewsSourceTest {
                         }]}
                         """));
 
-        List<Article> articles = source.search(SearchCriteria.keyword("framework"));
+        List<Article> articles = source.search("framework");
 
         assertThat(articles).singleElement()
                 .extracting(Article::url)
@@ -102,7 +102,7 @@ class HackerNewsSourceTest {
                         ]}
                         """));
 
-        List<Article> articles = source.search(SearchCriteria.keyword("anything"));
+        List<Article> articles = source.search("anything");
 
         assertThat(articles).extracting(Article::title).containsExactly("Kept");
     }
@@ -114,7 +114,7 @@ class HackerNewsSourceTest {
                         {"hits": [], "nbHits": 0}
                         """));
 
-        assertThat(source.search(SearchCriteria.keyword("zzzznomatches"))).isEmpty();
+        assertThat(source.search("zzzznomatches")).isEmpty();
     }
 
     @Test
@@ -122,7 +122,7 @@ class HackerNewsSourceTest {
         server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
 
-        assertThatThrownBy(() -> source.search(SearchCriteria.keyword("anything")))
+        assertThatThrownBy(() -> source.search("anything"))
                 .isInstanceOf(NewsSourceException.class)
                 .satisfies(
                         thrown ->
@@ -138,7 +138,7 @@ class HackerNewsSourceTest {
                         {"hits": []}
                         """));
 
-        source.search(SearchCriteria.keyword("AT&T"));
+        source.search("AT&T");
 
         server.verify();
     }

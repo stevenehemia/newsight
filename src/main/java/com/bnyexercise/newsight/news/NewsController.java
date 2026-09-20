@@ -22,6 +22,6 @@ public class NewsController {
         if (!StringUtils.hasText(q)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must not be blank");
         }
-        return newsService.search(SearchCriteria.keyword(q));
+        return newsService.search(q);
     }
 }

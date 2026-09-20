@@ -22,9 +22,9 @@ class NewsServiceTest {
         Article fromSecond = article("Second source story", TUESDAY);
         NewsService service =
                 new NewsService(
-                        List.of(criteria -> List.of(fromFirst), criteria -> List.of(fromSecond)));
+                        List.of(query -> List.of(fromFirst), query -> List.of(fromSecond)));
 
-        assertThat(service.search(SearchCriteria.keyword("anything")).articles())
+        assertThat(service.search("anything").articles())
                 .containsExactlyInAnyOrder(fromFirst, fromSecond);
     }
 
@@ -35,9 +35,9 @@ class NewsServiceTest {
         Article wednesday = article("Wednesday", WEDNESDAY);
         NewsService service =
                 new NewsService(
-                        List.of(criteria -> List.of(monday, wednesday), criteria -> List.of(tuesday)));
+                        List.of(query -> List.of(monday, wednesday), query -> List.of(tuesday)));
 
-        assertThat(service.search(SearchCriteria.keyword("anything")).articles())
+        assertThat(service.search("anything").articles())
                 .containsExactly(wednesday, tuesday, monday);
     }
 
@@ -45,22 +45,22 @@ class NewsServiceTest {
     void passesTheQueryToEachSource() {
         List<String> received = new ArrayList<>();
         NewsSource recording =
-                criteria -> {
-                    received.add(criteria.query());
+                query -> {
+                    received.add(query);
                     return List.of();
                 };
         NewsService service = new NewsService(List.of(recording, recording));
 
-        service.search(SearchCriteria.keyword("spring boot"));
+        service.search("spring boot");
 
         assertThat(received).containsExactly("spring boot", "spring boot");
     }
 
     @Test
     void returnsEmptyListWhenNoSourceFindsAnything() {
-        NewsService service = new NewsService(List.of(criteria -> List.of(), criteria -> List.of()));
+        NewsService service = new NewsService(List.of(query -> List.of(), query -> List.of()));
 
-        SearchResults results = service.search(SearchCriteria.keyword("zzzznomatches"));
+        SearchResults results = service.search("zzzznomatches");
 
         assertThat(results.articles()).isEmpty();
         assertThat(results.unavailable()).isEmpty();
@@ -73,9 +73,9 @@ class NewsServiceTest {
                 new NewsService(
                         List.of(
                                 failing("Busy Source", NewsSourceException.RATE_LIMITED),
-                                criteria -> List.of(healthy)));
+                                query -> List.of(healthy)));
 
-        SearchResults results = service.search(SearchCriteria.keyword("anything"));
+        SearchResults results = service.search("anything");
 
         assertThat(results.articles()).containsExactly(healthy);
         assertThat(results.unavailable())
@@ -94,13 +94,13 @@ class NewsServiceTest {
                     }
 
                     @Override
-                    public List<Article> search(SearchCriteria criteria) {
+                    public List<Article> search(String query) {
                         throw new IllegalStateException("bug in a source");
                     }
                 };
-        NewsService service = new NewsService(List.of(buggy, criteria -> List.of(healthy)));
+        NewsService service = new NewsService(List.of(buggy, query -> List.of(healthy)));
 
-        SearchResults results = service.search(SearchCriteria.keyword("anything"));
+        SearchResults results = service.search("anything");
 
         assertThat(results.articles()).containsExactly(healthy);
         assertThat(results.unavailable())
@@ -116,7 +116,7 @@ class NewsServiceTest {
                                 failing("One", NewsSourceException.UNAVAILABLE),
                                 failing("Two", NewsSourceException.UNAVAILABLE)));
 
-        assertThatThrownBy(() -> service.search(SearchCriteria.keyword("anything")))
+        assertThatThrownBy(() -> service.search("anything"))
                 .isInstanceOf(NewsUnavailableException.class);
     }
 
@@ -128,7 +128,7 @@ class NewsServiceTest {
             }
 
             @Override
-            public List<Article> search(SearchCriteria criteria) {
+            public List<Article> search(String query) {
                 throw new NewsSourceException(reason, "provider said no", null);
             }
         };

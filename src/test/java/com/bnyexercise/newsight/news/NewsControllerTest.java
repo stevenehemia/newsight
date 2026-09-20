@@ -27,7 +27,7 @@ class NewsControllerTest {
 
     @Test
     void returnsArticlesForQuery() throws Exception {
-        given(newsService.search(SearchCriteria.keyword("spring")))
+        given(newsService.search("spring"))
                 .willReturn(
                         new SearchResults(
                                 List.of(

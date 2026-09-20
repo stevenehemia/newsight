@@ -11,7 +11,7 @@ import java.util.List;
  */
 public interface NewsSource {
 
-    List<Article> search(SearchCriteria criteria);
+    List<Article> search(String query);
 
     /**
      * The provider's name as shown to the user, e.g. when explaining that it was unavailable.
