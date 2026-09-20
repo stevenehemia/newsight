@@ -79,21 +79,37 @@ export function applyFilters(articles: Article[], filters: Filters, now = new Da
  * own selection. So a count always says how many articles picking that chip would leave, and
  * picking a second value within the same facet widens rather than narrows.
  */
+/** Alphabetical: a handful of stable names, so predictable beats ranked. */
 export function sourceOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesCategory(article, filters) && matchesDate(article, filters, now),
   )
-  return optionsFor(articles, allowed, (article) => article.source)
+  return optionsFor(articles, allowed, (article) => article.source).sort((a, b) =>
+    a.value.localeCompare(b.value),
+  )
 }
 
+/**
+ * Busiest first, ties broken alphabetically, except that "Uncategorised" always comes last however
+ * many articles it holds: it is the absence of a topic, not a topic, and neither Hacker News nor
+ * GNews has sections at all — so ranking it by size would park the least informative chip in front
+ * of every real one.
+ */
 export function categoryOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesDate(article, filters, now),
   )
-  return optionsFor(articles, allowed, categoryOf)
+  return optionsFor(articles, allowed, categoryOf).sort((a, b) => {
+    if (a.value === UNCATEGORISED) return 1
+    if (b.value === UNCATEGORISED) return -1
+    return b.count - a.count || a.value.localeCompare(b.value)
+  })
 }
 
-/** Presets with no articles at all are left out entirely; the rest can still show a count of 0. */
+/**
+ * No date filter already means all time, so there is no chip for it: clicking the active preset
+ * switches it off. Presets matching nothing at all are left out; the rest can still show 0.
+ */
 export function dateOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesCategory(article, filters),

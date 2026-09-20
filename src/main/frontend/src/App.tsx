@@ -83,6 +83,8 @@ export default function App() {
             label="Category"
             options={categoryOptions(articles, filters)}
             selected={filters.categories}
+            // A broad search can produce a dozen sections, most with one article.
+            limit={10}
             onToggle={(value) =>
               setFilters({ ...filters, categories: toggle(filters.categories, value) })
             }
@@ -90,6 +92,7 @@ export default function App() {
           <FilterGroup
             label="Date"
             options={dateOptions(articles, filters)}
+            // No chip selected already means all time; clicking the active one switches it off.
             selected={preset ? [preset.label] : []}
             onToggle={(_, id) =>
               setFilters({ ...filters, datePreset: filters.datePreset === id ? null : (id ?? null) })
@@ -140,10 +143,12 @@ export default function App() {
         ))}
       </ul>
 
-      {/* NYT's terms require their logo, linked to developer.nytimes.com, on any page showing
-          their content. Add it here before deploying publicly. */}
+      {/* Before deploying publicly this needs two logos: NYT's, linked to developer.nytimes.com,
+          and a "Powered by The Guardian" logo. Both terms require them on any page showing their
+          content. */}
       <footer className="attribution">
-        News from Hacker News and The New York Times. Headlines link to the original articles.
+        News from Hacker News, The New York Times and The Guardian. Headlines link to the original
+        articles.
       </footer>
     </div>
   )
@@ -154,19 +159,30 @@ function FilterGroup({
   label,
   options,
   selected,
+  limit,
   onToggle,
 }: {
   label: string
   options: Option[]
   selected: string[]
+  /** Show at most this many chips until the user asks for the rest. */
+  limit?: number
   onToggle: (value: string, id?: string) => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   if (options.length === 0) return null
+
+  const capped = limit !== undefined && !expanded && options.length > limit
+  // A selected chip beyond the cap stays visible, or there would be no way to switch it off.
+  const shown = capped
+    ? options.filter((option, index) => index < limit || selected.includes(option.value))
+    : options
+
   return (
     <div className="filter-group">
       <span className="filter-label">{label}</span>
       <div className="filter-options">
-        {options.map((option) => {
+        {shown.map((option) => {
           const isSelected = selected.includes(option.value)
           return (
             <button
@@ -184,6 +200,12 @@ function FilterGroup({
             </button>
           )
         })}
+
+        {limit !== undefined && options.length > limit && (
+          <button type="button" className="link" onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Show fewer' : `Show all ${options.length}`}
+          </button>
+        )}
       </div>
     </div>
   )

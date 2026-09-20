@@ -13,3 +13,5 @@ newsight:
     nyt:
       # From the NYT_API_KEY environment variable. Empty switches the NYT source off.
       api-key: ${NYT_API_KEY:}
+    guardian:
+      api-key: ${GUARDIAN_API_KEY:}
