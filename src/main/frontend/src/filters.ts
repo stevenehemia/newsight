@@ -106,25 +106,21 @@ export function categoryOptions(articles: Article[], filters: Filters, now = new
   })
 }
 
-export const ALL_TIME_ID = 'all'
-export const ALL_TIME_LABEL = 'All time'
-
 /**
- * "All time" first — it is the state with no date filter, so one date chip is always active, like
- * radio buttons. Presets matching nothing at all are left out; the rest can still show 0.
+ * No date filter already means all time, so there is no chip for it: clicking the active preset
+ * switches it off. Presets matching nothing at all are left out; the rest can still show 0.
  */
 export function dateOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesCategory(article, filters),
   )
-  const presets = DATE_PRESETS.filter((preset) =>
+  return DATE_PRESETS.filter((preset) =>
     articles.some((article) => isOnOrAfter(article, preset.cutoff(now))),
   ).map((preset) => ({
     value: preset.label,
     id: preset.id,
     count: allowed.filter((article) => isOnOrAfter(article, preset.cutoff(now))).length,
   }))
-  return [{ value: ALL_TIME_LABEL, id: ALL_TIME_ID, count: allowed.length }, ...presets]
 }
 
 /** What the results area should say when it has no articles to show. */

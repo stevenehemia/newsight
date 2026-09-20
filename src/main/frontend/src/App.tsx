@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
 import {
-  ALL_TIME_ID,
-  ALL_TIME_LABEL,
   applyFilters,
   categoryOptions,
   dateOptions,
@@ -94,10 +92,10 @@ export default function App() {
           <FilterGroup
             label="Date"
             options={dateOptions(articles, filters)}
-            // "All time" is the no-filter state, so one date chip is always active.
-            selected={[preset ? preset.label : ALL_TIME_LABEL]}
+            // No chip selected already means all time; clicking the active one switches it off.
+            selected={preset ? [preset.label] : []}
             onToggle={(_, id) =>
-              setFilters({ ...filters, datePreset: id === ALL_TIME_ID ? null : (id ?? null) })
+              setFilters({ ...filters, datePreset: filters.datePreset === id ? null : (id ?? null) })
             }
           />
         </section>

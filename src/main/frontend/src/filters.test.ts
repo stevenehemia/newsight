@@ -138,21 +138,18 @@ describe('facet counts', () => {
     expect(counts).toContainEqual({ value: 'Climate', count: 0 })
   })
 
-  it('counts dates against the other facets, with All time first', () => {
+  it('counts dates against the other facets', () => {
     const counts = dateOptions(ARTICLES, filters({ sources: ['Hacker News'] }), NOW)
 
     expect(counts).toEqual([
-      { value: 'All time', id: 'all', count: 2 },
       { value: 'Last 7 days', id: 'week', count: 1 },
       { value: 'Last 30 days', id: 'month', count: 1 },
       { value: 'This year', id: 'year', count: 2 },
     ])
   })
 
-  it('offers only All time when every article is older than the presets', () => {
-    expect(dateOptions([OLD], NO_FILTERS, NOW)).toEqual([
-      { value: 'All time', id: 'all', count: 1 },
-    ])
+  it('offers no date presets when every article is older than all of them', () => {
+    expect(dateOptions([OLD], NO_FILTERS, NOW)).toEqual([])
   })
 })
 
