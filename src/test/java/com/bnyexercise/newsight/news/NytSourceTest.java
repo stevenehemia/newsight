@@ -74,7 +74,8 @@ class NytSourceTest {
                                 "By Jane Example",
                                 "Invented snippet.",
                                 "https://www.nytimes.com/2026/09/18/climate/invented.html",
-                                Instant.parse("2026-09-18T12:00:00Z")));
+                                Instant.parse("2026-09-18T12:00:00Z"),
+                                "Climate"));
         server.verify();
     }
 
@@ -96,6 +97,7 @@ class NytSourceTest {
         assertThat(article.summary()).isEqualTo("Only an abstract.");
         assertThat(article.source()).isEqualTo("The New York Times");
         assertThat(article.author()).isNull();
+        assertThat(article.category()).isNull();
     }
 
     @Test
@@ -151,7 +153,11 @@ class NytSourceTest {
         assertThatThrownBy(() -> source.search("climate"))
                 .isInstanceOf(NewsSourceException.class)
                 .hasMessageContaining("429")
-                .satisfies(NytSourceTest::assertKeyNotExposed);
+                .satisfies(NytSourceTest::assertKeyNotExposed)
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsSourceException) thrown).reason())
+                                        .isEqualTo(NewsSourceException.RATE_LIMITED));
     }
 
     @Test
@@ -161,7 +167,11 @@ class NytSourceTest {
 
         assertThatThrownBy(() -> source.search("climate"))
                 .isInstanceOf(NewsSourceException.class)
-                .satisfies(NytSourceTest::assertKeyNotExposed);
+                .satisfies(NytSourceTest::assertKeyNotExposed)
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsSourceException) thrown).reason())
+                                        .isEqualTo(NewsSourceException.UNAVAILABLE));
     }
 
     private static void assertKeyNotExposed(Throwable thrown) {

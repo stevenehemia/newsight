@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Searches Hacker News via the Algolia API.
@@ -29,15 +30,26 @@ public class HackerNewsSource implements NewsSource {
     }
 
     @Override
+    public String name() {
+        return SOURCE_NAME;
+    }
+
+    @Override
     public List<Article> search(String query) {
-        SearchResponse response =
-                client.get()
-                        .uri(uri -> uri.path("/search")
-                                .queryParam("query", query)
-                                .queryParam("tags", "story")
-                                .build())
-                        .retrieve()
-                        .body(SearchResponse.class);
+        SearchResponse response;
+        try {
+            response =
+                    client.get()
+                            .uri(uri -> uri.path("/search")
+                                    .queryParam("query", query)
+                                    .queryParam("tags", "story")
+                                    .build())
+                            .retrieve()
+                            .body(SearchResponse.class);
+        } catch (RestClientException ex) {
+            throw new NewsSourceException(
+                    NewsSourceException.UNAVAILABLE, "Hacker News request failed: " + ex.getMessage(), ex);
+        }
 
         if (response == null || response.hits() == null) {
             return List.of();
@@ -56,7 +68,9 @@ public class HackerNewsSource implements NewsSource {
         }
         // Ask HN and similar self-posts carry no outbound url; link to the discussion instead.
         String url = hit.url() != null ? hit.url() : ITEM_URL + hit.objectId();
-        return new Article(hit.title(), SOURCE_NAME, hit.author(), hit.storyText(), url, publishedAt);
+        // Hacker News has no sections, so the article carries no category.
+        return new Article(
+                hit.title(), SOURCE_NAME, hit.author(), hit.storyText(), url, publishedAt, null);
     }
 
     private Instant parseInstant(String value) {

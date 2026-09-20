@@ -2,13 +2,14 @@ package com.bnyexercise.newsight.news;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Plain unit tests: sources are lambdas, so no Spring context and no HTTP. */
+/** Plain unit tests: sources are lambdas or small stubs, so no Spring context and no HTTP. */
 class NewsServiceTest {
 
     private static final Instant MONDAY = Instant.parse("2026-09-14T09:00:00Z");
@@ -20,9 +21,11 @@ class NewsServiceTest {
         Article fromFirst = article("First source story", MONDAY);
         Article fromSecond = article("Second source story", TUESDAY);
         NewsService service =
-                new NewsService(List.of(query -> List.of(fromFirst), query -> List.of(fromSecond)));
+                new NewsService(
+                        List.of(query -> List.of(fromFirst), query -> List.of(fromSecond)));
 
-        assertThat(service.search("anything")).containsExactlyInAnyOrder(fromFirst, fromSecond);
+        assertThat(service.search("anything").articles())
+                .containsExactlyInAnyOrder(fromFirst, fromSecond);
     }
 
     @Test
@@ -34,7 +37,8 @@ class NewsServiceTest {
                 new NewsService(
                         List.of(query -> List.of(monday, wednesday), query -> List.of(tuesday)));
 
-        assertThat(service.search("anything")).containsExactly(wednesday, tuesday, monday);
+        assertThat(service.search("anything").articles())
+                .containsExactly(wednesday, tuesday, monday);
     }
 
     @Test
@@ -56,47 +60,82 @@ class NewsServiceTest {
     void returnsEmptyListWhenNoSourceFindsAnything() {
         NewsService service = new NewsService(List.of(query -> List.of(), query -> List.of()));
 
-        assertThat(service.search("zzzznomatches")).isEmpty();
+        SearchResults results = service.search("zzzznomatches");
+
+        assertThat(results.articles()).isEmpty();
+        assertThat(results.unavailable()).isEmpty();
     }
 
     @Test
-    void keepsOtherSourcesResultsWhenOneSourceFails() {
+    void reportsAFailingSourceAndKeepsTheOthersResults() {
         Article healthy = article("Still here", MONDAY);
-        NewsSource failing =
-                query -> {
-                    throw new NewsSourceException("HTTP 429 rate limited", null);
-                };
-        NewsService service = new NewsService(List.of(failing, query -> List.of(healthy)));
+        NewsService service =
+                new NewsService(
+                        List.of(
+                                failing("Busy Source", NewsSourceException.RATE_LIMITED),
+                                query -> List.of(healthy)));
 
-        assertThat(service.search("anything")).containsExactly(healthy);
+        SearchResults results = service.search("anything");
+
+        assertThat(results.articles()).containsExactly(healthy);
+        assertThat(results.unavailable())
+                .extracting(SearchResults.SourceNote::source, SearchResults.SourceNote::reason)
+                .containsExactly(tuple("Busy Source", "rate limited"));
     }
 
     @Test
-    void keepsOtherSourcesResultsWhenOneSourceFailsUnexpectedly() {
+    void reportsASourceThatFailsUnexpectedlyAsUnavailable() {
         Article healthy = article("Still here", MONDAY);
         NewsSource buggy =
-                query -> {
-                    throw new IllegalStateException("bug in a source");
+                new NewsSource() {
+                    @Override
+                    public String name() {
+                        return "Buggy Source";
+                    }
+
+                    @Override
+                    public List<Article> search(String query) {
+                        throw new IllegalStateException("bug in a source");
+                    }
                 };
         NewsService service = new NewsService(List.of(buggy, query -> List.of(healthy)));
 
-        assertThat(service.search("anything")).containsExactly(healthy);
+        SearchResults results = service.search("anything");
+
+        assertThat(results.articles()).containsExactly(healthy);
+        assertThat(results.unavailable())
+                .extracting(SearchResults.SourceNote::source, SearchResults.SourceNote::reason)
+                .containsExactly(tuple("Buggy Source", "temporarily unavailable"));
     }
 
     @Test
     void failsOnlyWhenEverySourceFails() {
-        NewsSource failing =
-                query -> {
-                    throw new NewsSourceException("down", null);
-                };
-        NewsService service = new NewsService(List.of(failing, failing));
+        NewsService service =
+                new NewsService(
+                        List.of(
+                                failing("One", NewsSourceException.UNAVAILABLE),
+                                failing("Two", NewsSourceException.UNAVAILABLE)));
 
         assertThatThrownBy(() -> service.search("anything"))
                 .isInstanceOf(NewsUnavailableException.class);
     }
 
+    private static NewsSource failing(String name, String reason) {
+        return new NewsSource() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public List<Article> search(String query) {
+                throw new NewsSourceException(reason, "provider said no", null);
+            }
+        };
+    }
+
     private static Article article(String title, Instant publishedAt) {
         return new Article(
-                title, "Test", null, null, "https://example.com/" + title.hashCode(), publishedAt);
+                title, "Test", null, null, "https://example.com/" + title.hashCode(), publishedAt, null);
     }
 }
