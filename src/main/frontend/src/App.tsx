@@ -1,99 +1,33 @@
 import { useState, type FormEvent } from 'react'
-
-/** Mirrors the Article record returned by GET /api/news/search. */
-type Article = {
-  title: string
-  source: string
-  author: string | null
-  summary: string | null
-  url: string
-  publishedAt: string
-  category: string | null
-}
-
-/** A source that contributed nothing, and why. */
-type SourceNote = {
-  source: string
-  reason: string
-}
-
-/** Mirrors the SearchResults record returned by GET /api/news/search. */
-type SearchResults = {
-  articles: Article[]
-  skipped: SourceNote[]
-  unavailable: SourceNote[]
-}
-
-/** Hacker News and GNews have no sections, so their articles are grouped under this label. */
-const UNCATEGORISED = 'Uncategorised'
-
-/**
- * Date filters are cumulative ("nothing older than this"), so only one applies at a time.
- * Options with no matching articles are hidden rather than shown as an empty choice.
- */
-const DATE_PRESETS = [
-  { id: 'week', label: 'Last 7 days', cutoff: () => daysAgo(7) },
-  { id: 'month', label: 'Last 30 days', cutoff: () => daysAgo(30) },
-  { id: 'year', label: 'This year', cutoff: () => new Date(new Date().getFullYear(), 0, 1) },
-]
+import {
+  applyFilters,
+  categoryOptions,
+  dateOptions,
+  hasAnyFilter,
+  NO_FILTERS,
+  presetOf,
+  sourceOptions,
+  toggle,
+  type Filters,
+  type Option,
+  type SearchResults,
+} from './filters'
 
 export default function App() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResults | null>(null)
-  const [sources, setSources] = useState<string[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [datePreset, setDatePreset] = useState<string | null>(null)
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
 
   async function search(event: FormEvent) {
     event.preventDefault()
     const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`)
     setResults(await response.json())
-    clearFilters() // the old filters belong to the old results
-  }
-
-  function clearFilters() {
-    setSources([])
-    setCategories([])
-    setDatePreset(null)
+    setFilters(NO_FILTERS) // the old filters belong to the old results
   }
 
   const articles = results?.articles ?? []
-  const preset = DATE_PRESETS.find((p) => p.id === datePreset)
-
-  const matchesSource = (a: Article) => sources.length === 0 || sources.includes(a.source)
-  const matchesCategory = (a: Article) =>
-    categories.length === 0 || categories.includes(a.category ?? UNCATEGORISED)
-  const matchesDate = (a: Article) => !preset || new Date(a.publishedAt) >= preset.cutoff()
-
-  const visible = articles.filter((a) => matchesSource(a) && matchesCategory(a) && matchesDate(a))
-
-  // Each facet counts what the OTHER filters allow, ignoring its own selection, so a count always
-  // says how many articles picking that chip would leave. A search returns tens of articles, so
-  // recounting on every render costs nothing.
-  const sourceCounts = countBy(articles.filter((a) => matchesCategory(a) && matchesDate(a)), (a) => a.source)
-  const categoryCounts = countBy(
-    articles.filter((a) => matchesSource(a) && matchesDate(a)),
-    (a) => a.category ?? UNCATEGORISED,
-  )
-
-  // Options stay listed once they exist in the unfiltered results, showing (0) rather than
-  // disappearing, so the bar does not jump around as filters are ticked.
-  const sourceOptions = optionsFor(articles, (a) => a.source, sourceCounts)
-  const categoryOptions = optionsFor(articles, (a) => a.category ?? UNCATEGORISED, categoryCounts)
-  const dateOptions = DATE_PRESETS.filter((p) =>
-    articles.some((a) => new Date(a.publishedAt) >= p.cutoff()),
-  ).map(
-    (p) =>
-      [
-        p.label,
-        articles.filter(
-          (a) => matchesSource(a) && matchesCategory(a) && new Date(a.publishedAt) >= p.cutoff(),
-        ).length,
-        p.id,
-      ] as const,
-  )
-
-  const filtering = sources.length > 0 || categories.length > 0 || datePreset !== null
+  const visible = applyFilters(articles, filters)
+  const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
 
   return (
@@ -119,27 +53,31 @@ export default function App() {
         <section className="filters">
           <FilterGroup
             label="Source"
-            options={sourceOptions}
-            selected={sources}
-            onToggle={(value) => setSources(toggle(sources, value))}
+            options={sourceOptions(articles, filters)}
+            selected={filters.sources}
+            onToggle={(value) => setFilters({ ...filters, sources: toggle(filters.sources, value) })}
           />
           <FilterGroup
             label="Category"
-            options={categoryOptions}
-            selected={categories}
-            onToggle={(value) => setCategories(toggle(categories, value))}
+            options={categoryOptions(articles, filters)}
+            selected={filters.categories}
+            onToggle={(value) =>
+              setFilters({ ...filters, categories: toggle(filters.categories, value) })
+            }
           />
           <FilterGroup
             label="Date"
-            options={dateOptions}
+            options={dateOptions(articles, filters)}
             selected={preset ? [preset.label] : []}
-            onToggle={(_, id) => setDatePreset(datePreset === id ? null : (id ?? null))}
+            onToggle={(_, id) =>
+              setFilters({ ...filters, datePreset: filters.datePreset === id ? null : (id ?? null) })
+            }
           />
 
           <p className="summary">
             Showing {visible.length} of {articles.length}
-            {filtering && (
-              <button type="button" className="link" onClick={clearFilters}>
+            {hasAnyFilter(filters) && (
+              <button type="button" className="link" onClick={() => setFilters(NO_FILTERS)}>
                 Clear filters
               </button>
             )}
@@ -180,7 +118,7 @@ function FilterGroup({
   onToggle,
 }: {
   label: string
-  options: (readonly [string, number] | readonly [string, number, string])[]
+  options: Option[]
   selected: string[]
   onToggle: (value: string, id?: string) => void
 }) {
@@ -188,48 +126,22 @@ function FilterGroup({
   return (
     <div className="filter-group">
       <span className="filter-label">{label}</span>
-      {options.map(([value, count, id]) => {
-        const isSelected = selected.includes(value)
+      {options.map((option) => {
+        const isSelected = selected.includes(option.value)
         return (
           <button
-            key={value}
+            key={option.value}
             type="button"
+            aria-pressed={isSelected}
             // Nothing left to show, and not currently selected: leave it visible but unusable.
-            disabled={count === 0 && !isSelected}
+            disabled={option.count === 0 && !isSelected}
             className={isSelected ? 'chip chip-on' : 'chip'}
-            onClick={() => onToggle(value, id)}
+            onClick={() => onToggle(option.value, option.id)}
           >
-            {value} ({count})
+            {option.value} ({option.count})
           </button>
         )
       })}
     </div>
   )
-}
-
-function toggle(list: string[], value: string) {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
-}
-
-/** Every value present in the unfiltered results, paired with its cross-filtered count. */
-function optionsFor(
-  articles: Article[],
-  key: (article: Article) => string,
-  counts: Record<string, number>,
-) {
-  return Object.keys(countBy(articles, key)).map((value) => [value, counts[value] ?? 0] as const)
-}
-
-function countBy(articles: Article[], key: (article: Article) => string) {
-  const counts: Record<string, number> = {}
-  for (const article of articles) {
-    counts[key(article)] = (counts[key(article)] ?? 0) + 1
-  }
-  return counts
-}
-
-function daysAgo(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  return date
 }
