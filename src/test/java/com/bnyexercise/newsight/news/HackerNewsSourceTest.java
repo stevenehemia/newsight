@@ -65,7 +65,8 @@ class HackerNewsSourceTest {
                                 "someuser",
                                 "Body text",
                                 "https://example.com/spring-boot-4",
-                                Instant.parse("2026-09-17T10:15:30Z")));
+                                Instant.parse("2026-09-17T10:15:30Z"),
+                                null));
         server.verify();
     }
 

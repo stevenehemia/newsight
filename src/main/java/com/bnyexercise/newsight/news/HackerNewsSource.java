@@ -69,7 +69,9 @@ public class HackerNewsSource implements NewsSource {
         }
         // Ask HN and similar self-posts carry no outbound url; link to the discussion instead.
         String url = hit.url() != null ? hit.url() : ITEM_URL + hit.objectId();
-        return new Article(hit.title(), SOURCE_NAME, hit.author(), hit.storyText(), url, publishedAt);
+        // Hacker News has no sections, so the article carries no category.
+        return new Article(
+                hit.title(), SOURCE_NAME, hit.author(), hit.storyText(), url, publishedAt, null);
     }
 
     private Instant parseInstant(String value) {

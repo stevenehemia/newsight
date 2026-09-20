@@ -97,7 +97,8 @@ public class NytSource implements NewsSource {
         // Kept verbatim, "By " prefix included: NYT's terms forbid altering their content.
         String author = doc.byline() == null ? null : blankToNull(doc.byline().original());
         String summary = StringUtils.hasText(doc.snippet()) ? doc.snippet() : blankToNull(doc.abstractText());
-        return new Article(title, source, author, summary, doc.webUrl(), publishedAt);
+        return new Article(
+                title, source, author, summary, doc.webUrl(), publishedAt, blankToNull(doc.sectionName()));
     }
 
     private static Instant parseInstant(String value) {
@@ -131,6 +132,7 @@ public class NytSource implements NewsSource {
             @JsonProperty("abstract") String abstractText,
             @JsonProperty("web_url") String webUrl,
             @JsonProperty("pub_date") String pubDate,
+            @JsonProperty("section_name") String sectionName,
             String source) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -136,6 +136,6 @@ class NewsServiceTest {
 
     private static Article article(String title, Instant publishedAt) {
         return new Article(
-                title, "Test", null, null, "https://example.com/" + title.hashCode(), publishedAt);
+                title, "Test", null, null, "https://example.com/" + title.hashCode(), publishedAt, null);
     }
 }

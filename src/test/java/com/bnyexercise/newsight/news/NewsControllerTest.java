@@ -37,7 +37,8 @@ class NewsControllerTest {
                                                 "someuser",
                                                 "A summary",
                                                 "https://example.com/spring-boot-4",
-                                                Instant.parse("2026-09-17T10:15:30Z"))),
+                                                Instant.parse("2026-09-17T10:15:30Z"),
+                                                null)),
                                 List.of(),
                                 List.of()));
 
