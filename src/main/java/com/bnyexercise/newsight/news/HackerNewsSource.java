@@ -6,7 +6,9 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -22,6 +24,8 @@ public class HackerNewsSource implements NewsSource {
 
     private static final String SOURCE_NAME = "Hacker News";
     private static final String ITEM_URL = "https://news.ycombinator.com/item?id=";
+    private static final Pattern TAGS = Pattern.compile("<[^>]+>");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final RestClient client;
 
@@ -70,7 +74,31 @@ public class HackerNewsSource implements NewsSource {
         String url = hit.url() != null ? hit.url() : ITEM_URL + hit.objectId();
         // Hacker News has no sections, so the article carries no category.
         return new Article(
-                hit.title(), SOURCE_NAME, hit.author(), hit.storyText(), url, publishedAt, null);
+                hit.title(),
+                SOURCE_NAME,
+                hit.author(),
+                toPlainText(hit.storyText()),
+                url,
+                publishedAt,
+                null);
+    }
+
+    /**
+     * Hacker News story text is HTML ({@code <a href="https:&#x2F;&#x2F;…">}), but the frontend
+     * renders summaries as text — deliberately, since this is user-submitted content and rendering
+     * it as markup would be an injection risk. So flatten it here.
+     *
+     * <p>Tags are removed before entities are decoded, so a decoded {@code &lt;} cannot turn into a
+     * tag afterwards.
+     */
+    private static String toPlainText(String html) {
+        if (html == null) {
+            return null;
+        }
+        // A space, not an empty string: "one<p>two" should not become "onetwo".
+        String withoutTags = TAGS.matcher(html).replaceAll(" ");
+        String collapsed = WHITESPACE.matcher(HtmlUtils.htmlUnescape(withoutTags)).replaceAll(" ").trim();
+        return collapsed.isEmpty() ? null : collapsed;
     }
 
     private Instant parseInstant(String value) {

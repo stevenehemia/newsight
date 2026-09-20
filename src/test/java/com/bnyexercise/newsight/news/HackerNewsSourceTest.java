@@ -91,6 +91,43 @@ class HackerNewsSourceTest {
     }
 
     @Test
+    void flattensHtmlStoryTextIntoPlainText() {
+        // Shape taken from a live response: links as anchors, slashes as &#x2F;, & as &amp;.
+        server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
+                .andRespond(withJson("""
+                        {"hits": [{
+                          "title": "Kimi K3: Open Frontier Intelligence",
+                          "url": "https://example.com/kimi",
+                          "author": "someuser",
+                          "story_text": "<a href=\\"https:&#x2F;&#x2F;example.com&#x2F;en\\" rel=\\"nofollow\\">https:&#x2F;&#x2F;example.com&#x2F;en</a><p>Performance &amp; price analysis",
+                          "created_at": "2026-09-17T10:15:30Z",
+                          "objectID": "123"
+                        }]}
+                        """));
+
+        Article article = source.search("kimi").getFirst();
+
+        assertThat(article.summary())
+                .isEqualTo("https://example.com/en Performance & price analysis");
+    }
+
+    @Test
+    void leavesTheSummaryNullWhenStoryTextIsOnlyMarkup() {
+        server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
+                .andRespond(withJson("""
+                        {"hits": [{
+                          "title": "Empty body",
+                          "url": "https://example.com/x",
+                          "story_text": "<p></p>",
+                          "created_at": "2026-09-17T10:15:30Z",
+                          "objectID": "124"
+                        }]}
+                        """));
+
+        assertThat(source.search("anything").getFirst().summary()).isNull();
+    }
+
+    @Test
     void skipsHitsWithoutTitleOrUsableDate() {
         server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
                 .andRespond(withJson("""
