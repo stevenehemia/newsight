@@ -79,32 +79,48 @@ export function applyFilters(articles: Article[], filters: Filters, now = new Da
  * own selection. So a count always says how many articles picking that chip would leave, and
  * picking a second value within the same facet widens rather than narrows.
  */
+/** Alphabetical: a handful of stable names, so predictable beats ranked. */
 export function sourceOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesCategory(article, filters) && matchesDate(article, filters, now),
   )
-  return optionsFor(articles, allowed, (article) => article.source)
+  return optionsFor(articles, allowed, (article) => article.source).sort((a, b) =>
+    a.value.localeCompare(b.value),
+  )
 }
 
+/**
+ * Busiest first, ties broken alphabetically. Guardian sections alone can produce a dozen values
+ * for one search, most with a single article, so the useful ones have to come first.
+ */
 export function categoryOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesDate(article, filters, now),
   )
-  return optionsFor(articles, allowed, categoryOf)
+  return optionsFor(articles, allowed, categoryOf).sort(
+    (a, b) => b.count - a.count || a.value.localeCompare(b.value),
+  )
 }
 
-/** Presets with no articles at all are left out entirely; the rest can still show a count of 0. */
+export const ALL_TIME_ID = 'all'
+export const ALL_TIME_LABEL = 'All time'
+
+/**
+ * "All time" first — it is the state with no date filter, so one date chip is always active, like
+ * radio buttons. Presets matching nothing at all are left out; the rest can still show 0.
+ */
 export function dateOptions(articles: Article[], filters: Filters, now = new Date()): Option[] {
   const allowed = articles.filter(
     (article) => matchesSource(article, filters) && matchesCategory(article, filters),
   )
-  return DATE_PRESETS.filter((preset) =>
+  const presets = DATE_PRESETS.filter((preset) =>
     articles.some((article) => isOnOrAfter(article, preset.cutoff(now))),
   ).map((preset) => ({
     value: preset.label,
     id: preset.id,
     count: allowed.filter((article) => isOnOrAfter(article, preset.cutoff(now))).length,
   }))
+  return [{ value: ALL_TIME_LABEL, id: ALL_TIME_ID, count: allowed.length }, ...presets]
 }
 
 /** What the results area should say when it has no articles to show. */

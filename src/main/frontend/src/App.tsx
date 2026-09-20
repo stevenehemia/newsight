@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
 import {
+  ALL_TIME_ID,
+  ALL_TIME_LABEL,
   applyFilters,
   categoryOptions,
   dateOptions,
@@ -83,6 +85,8 @@ export default function App() {
             label="Category"
             options={categoryOptions(articles, filters)}
             selected={filters.categories}
+            // A broad search can produce a dozen sections, most with one article.
+            limit={10}
             onToggle={(value) =>
               setFilters({ ...filters, categories: toggle(filters.categories, value) })
             }
@@ -90,9 +94,10 @@ export default function App() {
           <FilterGroup
             label="Date"
             options={dateOptions(articles, filters)}
-            selected={preset ? [preset.label] : []}
+            // "All time" is the no-filter state, so one date chip is always active.
+            selected={[preset ? preset.label : ALL_TIME_LABEL]}
             onToggle={(_, id) =>
-              setFilters({ ...filters, datePreset: filters.datePreset === id ? null : (id ?? null) })
+              setFilters({ ...filters, datePreset: id === ALL_TIME_ID ? null : (id ?? null) })
             }
           />
         </section>
@@ -156,19 +161,30 @@ function FilterGroup({
   label,
   options,
   selected,
+  limit,
   onToggle,
 }: {
   label: string
   options: Option[]
   selected: string[]
+  /** Show at most this many chips until the user asks for the rest. */
+  limit?: number
   onToggle: (value: string, id?: string) => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   if (options.length === 0) return null
+
+  const capped = limit !== undefined && !expanded && options.length > limit
+  // A selected chip beyond the cap stays visible, or there would be no way to switch it off.
+  const shown = capped
+    ? options.filter((option, index) => index < limit || selected.includes(option.value))
+    : options
+
   return (
     <div className="filter-group">
       <span className="filter-label">{label}</span>
       <div className="filter-options">
-        {options.map((option) => {
+        {shown.map((option) => {
           const isSelected = selected.includes(option.value)
           return (
             <button
@@ -186,6 +202,12 @@ function FilterGroup({
             </button>
           )
         })}
+
+        {limit !== undefined && options.length > limit && (
+          <button type="button" className="link" onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Show fewer' : `Show all ${options.length}`}
+          </button>
+        )}
       </div>
     </div>
   )

@@ -79,15 +79,18 @@ describe('applyFilters', () => {
 })
 
 describe('facet counts', () => {
-  it('counts every value when nothing is selected', () => {
+  it('lists sources alphabetically', () => {
     expect(sourceOptions(ARTICLES, NO_FILTERS, NOW)).toEqual([
-      { value: 'The New York Times', count: 3 },
       { value: 'Hacker News', count: 2 },
+      { value: 'The New York Times', count: 3 },
     ])
+  })
+
+  it('lists categories busiest first, ties broken alphabetically', () => {
     expect(categoryOptions(ARTICLES, NO_FILTERS, NOW)).toEqual([
-      { value: 'U.S.', count: 1 },
-      { value: 'Uncategorised', count: 2 },
       { value: 'Climate', count: 2 },
+      { value: 'Uncategorised', count: 2 },
+      { value: 'U.S.', count: 1 },
     ])
   })
 
@@ -110,8 +113,8 @@ describe('facet counts', () => {
 
     // Not 0 for NYT: selecting it as well would show its 3 articles.
     expect(counts).toEqual([
-      { value: 'The New York Times', count: 3 },
       { value: 'Hacker News', count: 2 },
+      { value: 'The New York Times', count: 3 },
     ])
   })
 
@@ -121,18 +124,21 @@ describe('facet counts', () => {
     expect(counts).toContainEqual({ value: 'Climate', count: 0 })
   })
 
-  it('counts dates against the other facets', () => {
+  it('counts dates against the other facets, with All time first', () => {
     const counts = dateOptions(ARTICLES, filters({ sources: ['Hacker News'] }), NOW)
 
     expect(counts).toEqual([
+      { value: 'All time', id: 'all', count: 2 },
       { value: 'Last 7 days', id: 'week', count: 1 },
       { value: 'Last 30 days', id: 'month', count: 1 },
       { value: 'This year', id: 'year', count: 2 },
     ])
   })
 
-  it('offers no date presets when every article is older than all of them', () => {
-    expect(dateOptions([OLD], NO_FILTERS, NOW)).toEqual([])
+  it('offers only All time when every article is older than the presets', () => {
+    expect(dateOptions([OLD], NO_FILTERS, NOW)).toEqual([
+      { value: 'All time', id: 'all', count: 1 },
+    ])
   })
 })
 
