@@ -1,109 +1,325 @@
+:root {
+  /* Warm, very light page tint; cards stay white so they lift off it. */
+  --brand: #1c2333;
+  --bg: #f4f2eb;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b6257;
+  --line: #f0e4d6;
+  --line-strong: #dcc9b2;
+  /* Deep enough for white text on top (~5.9:1) and for links on white. A brighter
+     orange would look livelier but fails contrast at this text size. */
+  --accent: #e08d3c;
+  --accent-hover: #ff9933;
+  --accent-soft: #fdead9;
+  --warn-bg: #fff3df;
+  --warn-line: #d97706;
+  --warn-text: #7a4a09;
+
+  --radius: 10px;
+  --radius-pill: 999px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Reserved for the wordmark; falls back to the body stack if Sora fails to load. */
+  --font-display: 'Sora', var(--font);
+  --small: 0.8125rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-  margin: 2rem auto;
-  max-width: 44rem;
-  padding: 0 1rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.55;
+  margin: 0;
 }
 
-form {
+/* One comfortable column: long lines are tiring to read. */
+.page {
+  margin: 0 auto;
+  max-width: 46rem;
+  padding: var(--space-8) var(--space-4) var(--space-8);
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+}
+
+.brand {
+  align-items: center;
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
 }
 
-input {
+/* The logo is taller than it is wide, so fix the height and let the width follow. */
+.logo {
+  height: 2.75rem;
+  width: auto;
+}
+
+.masthead h1 {
+  /* Divider between mark and wordmark. A border on the heading needs no extra markup, and it
+     grows with the type: the bar is as tall as the text's line box. */
+  border-left: 3px solid var(--accent);
+  padding-left: var(--space-2);
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  font-weight: 600;
+  color: var(--brand);
+  /* Tight leading: at display size the default line box adds visible slack above and below. */
+  line-height: 1.05;
+  /* Lighter strokes need more room than a bold cut, so only a little negative tracking. */
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+/* On a narrow phone the logo and a 3.5rem wordmark do not fit on one line. */
+@media (max-width: 30rem) {
+  .masthead h1 {
+    font-size: 2.5rem;
+  }
+
+  .logo {
+    height: 2.5rem;
+  }
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 1.25rem;
+  margin: var(--space-1) 0 0;
+}
+
+/* ---------- search ---------- */
+
+.search {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.search input {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   flex: 1;
-  padding: 0.5rem;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-}
-
-li {
-  margin-bottom: 1.25rem;
-}
-
-.meta {
-  color: #666;
-  font-size: 0.875rem;
-}
-
-.filters {
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-  padding: 0.75rem;
-}
-
-.filter-group {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.5rem;
-}
-
-.filter-label {
-  color: #666;
-  font-size: 0.8125rem;
-  min-width: 4.5rem;
-}
-
-.chip {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 999px;
-  cursor: pointer;
   font: inherit;
-  font-size: 0.8125rem;
-  padding: 0.125rem 0.625rem;
+  padding: var(--space-2) var(--space-3);
 }
 
-.chip[aria-pressed='true'] {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-
-.chip:disabled {
-  background: #f5f5f5;
-  color: #aaa;
-  cursor: default;
-}
-
-.chip:focus-visible {
-  outline: 2px solid #0b57d0;
+.search input:focus-visible,
+.chip:focus-visible,
+.link:focus-visible,
+.search button:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+.search button {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--space-2) var(--space-4);
+}
+
+.search button:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* ---------- filters ---------- */
+
+.filters {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-6);
+  padding: var(--space-3);
+}
+
+/* Label in a fixed gutter, chips in their own box beside it. If the chips were siblings of the
+   label they would wrap back to the container's left edge, i.e. underneath the label. */
+.filter-group {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.filter-label {
+  color: var(--muted);
+  flex: 0 0 4.5rem;
+  font-size: var(--small);
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--small);
+  padding: 0.125rem 0.625rem;
+}
+
+.chip:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Driven by aria-pressed so the look and the announced state cannot disagree. */
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.chip:disabled {
+  background: var(--bg);
+  border-color: var(--line);
+  color: #aab;
+  cursor: default;
+}
+
+/* Sits between the filter panel and the results, and carries the rule that separates them. */
 .summary {
-  color: #666;
-  font-size: 0.8125rem;
-  margin: 0.5rem 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--small);
+  margin: 0 0 var(--space-4);
+  padding-top: var(--space-4);
 }
 
 .link {
   background: none;
   border: none;
-  color: #0b57d0;
+  color: var(--accent);
   cursor: pointer;
   font: inherit;
-  font-size: 0.8125rem;
-  padding: 0 0 0 0.5rem;
+  font-size: var(--small);
+  padding: 0 0 0 var(--space-2);
   text-decoration: underline;
 }
 
-.empty {
-  color: #666;
-}
+/* ---------- messages ---------- */
 
 .notes {
-  background: #fff8e1;
-  border-left: 3px solid #e0b400;
-  color: #665c00;
-  font-size: 0.875rem;
-  padding: 0.5rem 0.75rem;
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn-line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--warn-text);
+  font-size: var(--small);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+}
+
+.empty {
+  color: var(--muted);
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* ---------- results ---------- */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* When a search found nothing there is no summary line, so the message carries the rule instead.
+   If both are on the page (filters hid everything), the summary above it already has one. */
+.empty {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-4);
+}
+
+.summary + .empty {
+  border-top: none;
+  padding-top: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--line-strong);
+}
+
+.card h2 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.card h2 a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card h2 a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: var(--small);
+  margin-top: var(--space-2);
+}
+
+/* Some Hacker News posts carry several paragraphs of body text. Clamp to three lines so one long
+   result cannot dominate the page; the browser adds the ellipsis and re-measures when the card
+   width changes. Clamping in CSS also leaves the text itself untouched, which matters because NYT
+   and Guardian terms forbid altering their content. */
+.card p {
+  color: #443d35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  margin: var(--space-2) 0 0;
+  overflow: hidden;
+}
+
+/* ---------- attribution ---------- */
+
+.attribution {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--small);
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
 }
