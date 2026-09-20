@@ -3,6 +3,7 @@ import {
   applyFilters,
   categoryOptions,
   dateOptions,
+  emptyMessage,
   NO_FILTERS,
   sourceOptions,
   toggle,
@@ -132,6 +133,36 @@ describe('facet counts', () => {
 
   it('offers no date presets when every article is older than all of them', () => {
     expect(dateOptions([OLD], NO_FILTERS, NOW)).toEqual([])
+  })
+})
+
+describe('emptyMessage', () => {
+  const searched = { searched: true, failed: false, total: 5, visible: 5 }
+
+  it('says nothing before the first search', () => {
+    expect(emptyMessage({ ...searched, searched: false, total: 0, visible: 0 }, '')).toBeNull()
+  })
+
+  it('says nothing while there are articles to show', () => {
+    expect(emptyMessage(searched, 'climate')).toBeNull()
+  })
+
+  it('names the query when the search found nothing', () => {
+    expect(emptyMessage({ ...searched, total: 0, visible: 0 }, 'zzzznomatches')).toBe(
+      'No articles found for “zzzznomatches”.',
+    )
+  })
+
+  it('distinguishes filters hiding everything from a search finding nothing', () => {
+    expect(emptyMessage({ ...searched, visible: 0 }, 'climate')).toBe(
+      'No articles match these filters.',
+    )
+  })
+
+  it('does not claim nothing was found when the request failed', () => {
+    const message = emptyMessage({ searched: true, failed: true, total: 0, visible: 0 }, 'climate')
+
+    expect(message).toBe('Something went wrong. Please try again.')
   })
 })
 

@@ -3,6 +3,7 @@ import {
   applyFilters,
   categoryOptions,
   dateOptions,
+  emptyMessage,
   hasAnyFilter,
   NO_FILTERS,
   presetOf,
@@ -17,18 +18,29 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResults | null>(null)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
+  // The query that produced the current results, which may differ from what is in the box now.
+  const [searched, setSearched] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
 
   async function search(event: FormEvent) {
     event.preventDefault()
     const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`)
-    setResults(await response.json())
+    setSearched(query)
     setFilters(NO_FILTERS) // the old filters belong to the old results
+    // Full error handling comes later; this only stops a failed request being reported
+    // as "no articles found", which would be untrue.
+    setFailed(!response.ok)
+    setResults(response.ok ? await response.json() : null)
   }
 
   const articles = results?.articles ?? []
   const visible = applyFilters(articles, filters)
   const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
+  const message = emptyMessage(
+    { searched: searched !== null, failed, total: articles.length, visible: visible.length },
+    searched ?? '',
+  )
 
   return (
     <main>
@@ -85,9 +97,7 @@ export default function App() {
         </section>
       )}
 
-      {articles.length > 0 && visible.length === 0 && (
-        <p className="empty">No articles match these filters.</p>
-      )}
+      {message && <p className="empty">{message}</p>}
 
       <ul>
         {visible.map((article, index) => (

@@ -107,6 +107,26 @@ export function dateOptions(articles: Article[], filters: Filters, now = new Dat
   }))
 }
 
+/** What the results area should say when it has no articles to show. */
+export type SearchState = {
+  /** False before the first search, when the page should stay quiet. */
+  searched: boolean
+  /** The request itself failed, so "nothing found" would be a lie. */
+  failed: boolean
+  /** Articles the search returned, before filtering. */
+  total: number
+  /** Articles left after filtering. */
+  visible: number
+}
+
+export function emptyMessage(state: SearchState, query: string): string | null {
+  if (!state.searched) return null
+  if (state.failed) return 'Something went wrong. Please try again.'
+  if (state.total === 0) return `No articles found for “${query}”.`
+  if (state.visible === 0) return 'No articles match these filters.'
+  return null
+}
+
 export function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
 }
