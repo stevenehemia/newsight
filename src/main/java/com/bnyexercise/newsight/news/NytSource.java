@@ -9,10 +9,12 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Searches the New York Times Article Search API.
@@ -42,6 +44,11 @@ public class NytSource implements NewsSource {
     }
 
     @Override
+    public String name() {
+        return DEFAULT_SOURCE_NAME;
+    }
+
+    @Override
     public List<Article> search(SearchCriteria criteria) {
         if (!StringUtils.hasText(apiKey)) {
             return List.of();
@@ -59,8 +66,16 @@ public class NytSource implements NewsSource {
                                     .build(query, apiKey))
                             .retrieve()
                             .body(SearchResponse.class);
+        } catch (RestClientResponseException ex) {
+            // 429 is the one the user can act on ("try again shortly"), so name it separately.
+            String reason =
+                    ex.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)
+                            ? NewsSourceException.RATE_LIMITED
+                            : NewsSourceException.UNAVAILABLE;
+            throw new NewsSourceException(reason, "NYT request failed: " + ex.getMessage(), ex);
         } catch (RestClientException ex) {
-            throw new NewsSourceException("NYT request failed: " + ex.getMessage(), ex);
+            throw new NewsSourceException(
+                    NewsSourceException.UNAVAILABLE, "NYT request failed: " + ex.getMessage(), ex);
         }
 
         if (body == null || body.response() == null || body.response().docs() == null) {

@@ -30,3 +30,11 @@ li {
   color: #666;
   font-size: 0.875rem;
 }
+
+.notes {
+  background: #fff8e1;
+  border-left: 3px solid #e0b400;
+  color: #665c00;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}

@@ -1,11 +1,13 @@
 package com.bnyexercise.newsight.news;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.time.Instant;
@@ -13,6 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
@@ -111,6 +114,19 @@ class HackerNewsSourceTest {
                         """));
 
         assertThat(source.search(SearchCriteria.keyword("zzzznomatches"))).isEmpty();
+    }
+
+    @Test
+    void reportsHttpErrorsAsSourceFailures() {
+        server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> source.search(SearchCriteria.keyword("anything")))
+                .isInstanceOf(NewsSourceException.class)
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsSourceException) thrown).reason())
+                                        .isEqualTo(NewsSourceException.UNAVAILABLE));
     }
 
     @Test

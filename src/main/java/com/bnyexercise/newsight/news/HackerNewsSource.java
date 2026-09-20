@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Searches Hacker News via the Algolia API.
@@ -29,16 +30,27 @@ public class HackerNewsSource implements NewsSource {
     }
 
     @Override
+    public String name() {
+        return SOURCE_NAME;
+    }
+
+    @Override
     public List<Article> search(SearchCriteria criteria) {
         String query = criteria.query();
-        SearchResponse response =
-                client.get()
-                        .uri(uri -> uri.path("/search")
-                                .queryParam("query", query)
-                                .queryParam("tags", "story")
-                                .build())
-                        .retrieve()
-                        .body(SearchResponse.class);
+        SearchResponse response;
+        try {
+            response =
+                    client.get()
+                            .uri(uri -> uri.path("/search")
+                                    .queryParam("query", query)
+                                    .queryParam("tags", "story")
+                                    .build())
+                            .retrieve()
+                            .body(SearchResponse.class);
+        } catch (RestClientException ex) {
+            throw new NewsSourceException(
+                    NewsSourceException.UNAVAILABLE, "Hacker News request failed: " + ex.getMessage(), ex);
+        }
 
         if (response == null || response.hits() == null) {
             return List.of();

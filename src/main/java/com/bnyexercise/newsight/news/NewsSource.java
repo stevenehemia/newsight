@@ -12,4 +12,13 @@ import java.util.List;
 public interface NewsSource {
 
     List<Article> search(SearchCriteria criteria);
+
+    /**
+     * The provider's name as shown to the user, e.g. when explaining that it was unavailable.
+     *
+     * <p>Defaulted so a lambda can still stand in for a source in tests.
+     */
+    default String name() {
+        return getClass().getSimpleName();
+    }
 }

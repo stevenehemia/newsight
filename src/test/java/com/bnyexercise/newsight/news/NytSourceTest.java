@@ -151,7 +151,11 @@ class NytSourceTest {
         assertThatThrownBy(() -> source.search(SearchCriteria.keyword("climate")))
                 .isInstanceOf(NewsSourceException.class)
                 .hasMessageContaining("429")
-                .satisfies(NytSourceTest::assertKeyNotExposed);
+                .satisfies(NytSourceTest::assertKeyNotExposed)
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsSourceException) thrown).reason())
+                                        .isEqualTo(NewsSourceException.RATE_LIMITED));
     }
 
     @Test
@@ -161,7 +165,11 @@ class NytSourceTest {
 
         assertThatThrownBy(() -> source.search(SearchCriteria.keyword("climate")))
                 .isInstanceOf(NewsSourceException.class)
-                .satisfies(NytSourceTest::assertKeyNotExposed);
+                .satisfies(NytSourceTest::assertKeyNotExposed)
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsSourceException) thrown).reason())
+                                        .isEqualTo(NewsSourceException.UNAVAILABLE));
     }
 
     private static void assertKeyNotExposed(Throwable thrown) {

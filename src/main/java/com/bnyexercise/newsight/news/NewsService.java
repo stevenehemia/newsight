@@ -28,28 +28,25 @@ public class NewsService {
         this.sources = List.copyOf(sources);
     }
 
-    public List<Article> search(SearchCriteria criteria) {
+    public SearchResults search(SearchCriteria criteria) {
         List<Article> articles = new ArrayList<>();
-        int failures = 0;
+        List<SearchResults.SourceNote> unavailable = new ArrayList<>();
         for (NewsSource source : sources) {
             try {
                 articles.addAll(source.search(criteria));
             } catch (NewsSourceException ex) {
-                failures++;
-                log.warn("{} failed: {}", nameOf(source), ex.getMessage());
+                unavailable.add(new SearchResults.SourceNote(source.name(), ex.reason()));
+                log.warn("{} failed: {}", source.name(), ex.getMessage());
             } catch (RuntimeException ex) {
-                failures++;
-                log.error("{} failed unexpectedly", nameOf(source), ex);
+                unavailable.add(
+                        new SearchResults.SourceNote(source.name(), NewsSourceException.UNAVAILABLE));
+                log.error("{} failed unexpectedly", source.name(), ex);
             }
         }
-        if (!sources.isEmpty() && failures == sources.size()) {
+        if (!sources.isEmpty() && unavailable.size() == sources.size()) {
             throw new NewsUnavailableException();
         }
         articles.sort(NEWEST_FIRST);
-        return articles;
-    }
-
-    private static String nameOf(NewsSource source) {
-        return source.getClass().getSimpleName();
+        return new SearchResults(articles, List.of(), unavailable);
     }
 }

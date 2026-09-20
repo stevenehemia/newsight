@@ -10,15 +10,30 @@ type Article = {
   publishedAt: string
 }
 
+/** A source that contributed nothing, and why. */
+type SourceNote = {
+  source: string
+  reason: string
+}
+
+/** Mirrors the SearchResults record returned by GET /api/news/search. */
+type SearchResults = {
+  articles: Article[]
+  skipped: SourceNote[]
+  unavailable: SourceNote[]
+}
+
 export default function App() {
   const [query, setQuery] = useState('')
-  const [articles, setArticles] = useState<Article[]>([])
+  const [results, setResults] = useState<SearchResults | null>(null)
 
   async function search(event: FormEvent) {
     event.preventDefault()
     const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`)
-    setArticles(await response.json())
+    setResults(await response.json())
   }
+
+  const articles = results?.articles ?? []
 
   return (
     <main>
@@ -32,6 +47,15 @@ export default function App() {
         />
         <button type="submit">Search</button>
       </form>
+
+      {results && [...results.skipped, ...results.unavailable].length > 0 && (
+        <p className="notes">
+          Not included —{' '}
+          {[...results.skipped, ...results.unavailable]
+            .map((note) => `${note.source}: ${note.reason}`)
+            .join(' · ')}
+        </p>
+      )}
 
       <ul>
         {articles.map((article, index) => (

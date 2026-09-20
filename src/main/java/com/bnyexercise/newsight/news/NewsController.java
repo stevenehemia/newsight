@@ -1,6 +1,5 @@
 package com.bnyexercise.newsight.news;
 
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +18,7 @@ public class NewsController {
     }
 
     @GetMapping("/api/news/search")
-    List<Article> search(@RequestParam String q) {
+    SearchResults search(@RequestParam String q) {
         if (!StringUtils.hasText(q)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must not be blank");
         }
