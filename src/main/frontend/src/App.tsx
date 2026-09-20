@@ -5,11 +5,13 @@ import {
   categoryOptions,
   dateOptions,
   emptyMessage,
+  failureFor,
   hasAnyFilter,
   NO_FILTERS,
   presetOf,
   sourceOptions,
   toggle,
+  type Failure,
   type Filters,
   type Option,
   type SearchResults,
@@ -21,7 +23,7 @@ export default function App() {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   // The query that produced the current results, which may differ from what is in the box now.
   const [searched, setSearched] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<Failure | null>(null)
   const [loading, setLoading] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
 
@@ -42,7 +44,7 @@ export default function App() {
     setSearched(trimmed)
     setFilters(NO_FILTERS) // the old filters belong to the old results
     setResults(null) // clear the previous results rather than showing them under "Searching…"
-    setFailed(false)
+    setFailure(null)
     setLoading(true)
     try {
       // Trimmed: surrounding spaces are never meaningful to a search, and sending them would put
@@ -50,12 +52,13 @@ export default function App() {
       const response = await fetch(`/api/news/search?q=${encodeURIComponent(trimmed)}`, {
         signal: controller.signal,
       })
-      setFailed(!response.ok)
+      setFailure(response.ok ? null : failureFor(response.status))
       setResults(response.ok ? await response.json() : null)
     } catch {
       // An aborted request was replaced by a newer one, which owns the state now.
       if (controller.signal.aborted) return
-      setFailed(true)
+      // fetch only throws when the request never completed: no server, no network, no response.
+      setFailure('network')
     } finally {
       // Same reason: the newer search is still loading, so do not switch its state off.
       if (!controller.signal.aborted) {
@@ -69,7 +72,7 @@ export default function App() {
   const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
   const message = emptyMessage(
-    { searched: searched !== null, loading, failed, total: articles.length, visible: visible.length },
+    { searched: searched !== null, loading, failure, total: articles.length, visible: visible.length },
     searched ?? '',
   )
 
