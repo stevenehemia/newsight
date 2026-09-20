@@ -1,6 +1,6 @@
 package com.bnyexercise.newsight.news;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,7 +27,7 @@ class NewsControllerTest {
 
     @Test
     void returnsArticlesForQuery() throws Exception {
-        given(newsService.search("spring"))
+        given(newsService.search(SearchCriteria.keyword("spring")))
                 .willReturn(
                         List.of(
                                 new Article(
@@ -48,7 +48,7 @@ class NewsControllerTest {
 
     @Test
     void returnsEmptyArrayWhenNothingFound() throws Exception {
-        given(newsService.search(anyString())).willReturn(List.of());
+        given(newsService.search(any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/news/search").param("q", "zzzznomatches"))
                 .andExpect(status().isOk())
@@ -58,7 +58,7 @@ class NewsControllerTest {
 
     @Test
     void returnsServiceUnavailableWhenEverySourceFails() throws Exception {
-        given(newsService.search(anyString())).willThrow(new NewsUnavailableException());
+        given(newsService.search(any())).willThrow(new NewsUnavailableException());
 
         mockMvc.perform(get("/api/news/search").param("q", "spring"))
                 .andExpect(status().isServiceUnavailable());

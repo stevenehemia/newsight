@@ -64,7 +64,7 @@ class NytSourceTest {
                         }
                         """)));
 
-        List<Article> articles = source.search("climate");
+        List<Article> articles = source.search(SearchCriteria.keyword("climate"));
 
         assertThat(articles)
                 .containsExactly(
@@ -91,7 +91,7 @@ class NytSourceTest {
                         }
                         """)));
 
-        Article article = source.search("anything").getFirst();
+        Article article = source.search(SearchCriteria.keyword("anything")).getFirst();
 
         assertThat(article.summary()).isEqualTo("Only an abstract.");
         assertThat(article.source()).isEqualTo("The New York Times");
@@ -108,14 +108,14 @@ class NytSourceTest {
                         {"headline": {"main": "Kept"}, "web_url": "https://x/4", "pub_date": "2026-09-18T12:00:00Z"}
                         """)));
 
-        assertThat(source.search("anything")).extracting(Article::title).containsExactly("Kept");
+        assertThat(source.search(SearchCriteria.keyword("anything"))).extracting(Article::title).containsExactly("Kept");
     }
 
     @Test
     void returnsEmptyListWhenNothingMatches() {
         server.expect(requestTo(startsWith(SEARCH_URL))).andRespond(withJson(response("")));
 
-        assertThat(source.search("zzzznomatches")).isEmpty();
+        assertThat(source.search(SearchCriteria.keyword("zzzznomatches"))).isEmpty();
     }
 
     @Test
@@ -124,7 +124,7 @@ class NytSourceTest {
         server.expect(requestTo(containsString("q=AT%26T")))
                 .andRespond(withJson(response("")));
 
-        source.search("AT&T");
+        source.search(SearchCriteria.keyword("AT&T"));
 
         server.verify();
     }
@@ -135,7 +135,7 @@ class NytSourceTest {
         MockRestServiceServer noCallsExpected = MockRestServiceServer.bindTo(builder).build();
         NytSource disabled = new NytSource(builder, "");
 
-        assertThat(disabled.search("climate")).isEmpty();
+        assertThat(disabled.search(SearchCriteria.keyword("climate"))).isEmpty();
         noCallsExpected.verify();
     }
 
@@ -148,7 +148,7 @@ class NytSourceTest {
                                 {"fault": {"faultstring": "Rate limit quota violation"}}
                                 """));
 
-        assertThatThrownBy(() -> source.search("climate"))
+        assertThatThrownBy(() -> source.search(SearchCriteria.keyword("climate")))
                 .isInstanceOf(NewsSourceException.class)
                 .hasMessageContaining("429")
                 .satisfies(NytSourceTest::assertKeyNotExposed);
@@ -159,7 +159,7 @@ class NytSourceTest {
         server.expect(requestTo(startsWith(SEARCH_URL)))
                 .andRespond(withException(new SocketTimeoutException("Read timed out")));
 
-        assertThatThrownBy(() -> source.search("climate"))
+        assertThatThrownBy(() -> source.search(SearchCriteria.keyword("climate")))
                 .isInstanceOf(NewsSourceException.class)
                 .satisfies(NytSourceTest::assertKeyNotExposed);
     }

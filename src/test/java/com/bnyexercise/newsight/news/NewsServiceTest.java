@@ -20,9 +20,9 @@ class NewsServiceTest {
         Article fromFirst = article("First source story", MONDAY);
         Article fromSecond = article("Second source story", TUESDAY);
         NewsService service =
-                new NewsService(List.of(query -> List.of(fromFirst), query -> List.of(fromSecond)));
+                new NewsService(List.of(criteria -> List.of(fromFirst), criteria -> List.of(fromSecond)));
 
-        assertThat(service.search("anything")).containsExactlyInAnyOrder(fromFirst, fromSecond);
+        assertThat(service.search(SearchCriteria.keyword("anything"))).containsExactlyInAnyOrder(fromFirst, fromSecond);
     }
 
     @Test
@@ -32,66 +32,66 @@ class NewsServiceTest {
         Article wednesday = article("Wednesday", WEDNESDAY);
         NewsService service =
                 new NewsService(
-                        List.of(query -> List.of(monday, wednesday), query -> List.of(tuesday)));
+                        List.of(criteria -> List.of(monday, wednesday), criteria -> List.of(tuesday)));
 
-        assertThat(service.search("anything")).containsExactly(wednesday, tuesday, monday);
+        assertThat(service.search(SearchCriteria.keyword("anything"))).containsExactly(wednesday, tuesday, monday);
     }
 
     @Test
     void passesTheQueryToEachSource() {
         List<String> received = new ArrayList<>();
         NewsSource recording =
-                query -> {
-                    received.add(query);
+                criteria -> {
+                    received.add(criteria.query());
                     return List.of();
                 };
         NewsService service = new NewsService(List.of(recording, recording));
 
-        service.search("spring boot");
+        service.search(SearchCriteria.keyword("spring boot"));
 
         assertThat(received).containsExactly("spring boot", "spring boot");
     }
 
     @Test
     void returnsEmptyListWhenNoSourceFindsAnything() {
-        NewsService service = new NewsService(List.of(query -> List.of(), query -> List.of()));
+        NewsService service = new NewsService(List.of(criteria -> List.of(), criteria -> List.of()));
 
-        assertThat(service.search("zzzznomatches")).isEmpty();
+        assertThat(service.search(SearchCriteria.keyword("zzzznomatches"))).isEmpty();
     }
 
     @Test
     void keepsOtherSourcesResultsWhenOneSourceFails() {
         Article healthy = article("Still here", MONDAY);
         NewsSource failing =
-                query -> {
+                criteria -> {
                     throw new NewsSourceException("HTTP 429 rate limited", null);
                 };
-        NewsService service = new NewsService(List.of(failing, query -> List.of(healthy)));
+        NewsService service = new NewsService(List.of(failing, criteria -> List.of(healthy)));
 
-        assertThat(service.search("anything")).containsExactly(healthy);
+        assertThat(service.search(SearchCriteria.keyword("anything"))).containsExactly(healthy);
     }
 
     @Test
     void keepsOtherSourcesResultsWhenOneSourceFailsUnexpectedly() {
         Article healthy = article("Still here", MONDAY);
         NewsSource buggy =
-                query -> {
+                criteria -> {
                     throw new IllegalStateException("bug in a source");
                 };
-        NewsService service = new NewsService(List.of(buggy, query -> List.of(healthy)));
+        NewsService service = new NewsService(List.of(buggy, criteria -> List.of(healthy)));
 
-        assertThat(service.search("anything")).containsExactly(healthy);
+        assertThat(service.search(SearchCriteria.keyword("anything"))).containsExactly(healthy);
     }
 
     @Test
     void failsOnlyWhenEverySourceFails() {
         NewsSource failing =
-                query -> {
+                criteria -> {
                     throw new NewsSourceException("down", null);
                 };
         NewsService service = new NewsService(List.of(failing, failing));
 
-        assertThatThrownBy(() -> service.search("anything"))
+        assertThatThrownBy(() -> service.search(SearchCriteria.keyword("anything")))
                 .isInstanceOf(NewsUnavailableException.class);
     }
 

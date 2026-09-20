@@ -52,7 +52,7 @@ class HackerNewsSourceTest {
                         }]}
                         """));
 
-        List<Article> articles = source.search("spring");
+        List<Article> articles = source.search(SearchCriteria.keyword("spring"));
 
         assertThat(articles)
                 .containsExactly(
@@ -79,7 +79,7 @@ class HackerNewsSourceTest {
                         }]}
                         """));
 
-        List<Article> articles = source.search("framework");
+        List<Article> articles = source.search(SearchCriteria.keyword("framework"));
 
         assertThat(articles).singleElement()
                 .extracting(Article::url)
@@ -98,7 +98,7 @@ class HackerNewsSourceTest {
                         ]}
                         """));
 
-        List<Article> articles = source.search("anything");
+        List<Article> articles = source.search(SearchCriteria.keyword("anything"));
 
         assertThat(articles).extracting(Article::title).containsExactly("Kept");
     }
@@ -110,7 +110,7 @@ class HackerNewsSourceTest {
                         {"hits": [], "nbHits": 0}
                         """));
 
-        assertThat(source.search("zzzznomatches")).isEmpty();
+        assertThat(source.search(SearchCriteria.keyword("zzzznomatches"))).isEmpty();
     }
 
     @Test
@@ -121,7 +121,7 @@ class HackerNewsSourceTest {
                         {"hits": []}
                         """));
 
-        source.search("AT&T");
+        source.search(SearchCriteria.keyword("AT&T"));
 
         server.verify();
     }

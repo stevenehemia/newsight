@@ -29,7 +29,8 @@ public class HackerNewsSource implements NewsSource {
     }
 
     @Override
-    public List<Article> search(String query) {
+    public List<Article> search(SearchCriteria criteria) {
+        String query = criteria.query();
         SearchResponse response =
                 client.get()
                         .uri(uri -> uri.path("/search")

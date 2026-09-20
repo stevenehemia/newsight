@@ -42,10 +42,11 @@ public class NytSource implements NewsSource {
     }
 
     @Override
-    public List<Article> search(String query) {
+    public List<Article> search(SearchCriteria criteria) {
         if (!StringUtils.hasText(apiKey)) {
             return List.of();
         }
+        String query = criteria.query();
         SearchResponse body;
         try {
             // Template variables, not literal values, so characters like & and + in "AT&T" are encoded.

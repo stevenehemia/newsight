@@ -11,5 +11,5 @@ import java.util.List;
  */
 public interface NewsSource {
 
-    List<Article> search(String query);
+    List<Article> search(SearchCriteria criteria);
 }
