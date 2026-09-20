@@ -127,6 +127,8 @@ export function dateOptions(articles: Article[], filters: Filters, now = new Dat
 export type SearchState = {
   /** False before the first search, when the page should stay quiet. */
   searched: boolean
+  /** A request is in flight. */
+  loading: boolean
   /** The request itself failed, so "nothing found" would be a lie. */
   failed: boolean
   /** Articles the search returned, before filtering. */
@@ -136,6 +138,8 @@ export type SearchState = {
 }
 
 export function emptyMessage(state: SearchState, query: string): string | null {
+  // First, so a slow search cannot briefly flash the previous search's "nothing found".
+  if (state.loading) return 'Searching…'
   if (!state.searched) return null
   if (state.failed) return 'Something went wrong. Please try again.'
   if (state.total === 0) return `No articles found for “${query}”.`

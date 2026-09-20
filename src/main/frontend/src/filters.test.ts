@@ -154,10 +154,32 @@ describe('facet counts', () => {
 })
 
 describe('emptyMessage', () => {
-  const searched = { searched: true, failed: false, total: 5, visible: 5 }
+  const searched = { searched: true, loading: false, failed: false, total: 5, visible: 5 }
 
   it('says nothing before the first search', () => {
     expect(emptyMessage({ ...searched, searched: false, total: 0, visible: 0 }, '')).toBeNull()
+  })
+
+  it('says it is searching while a request is in flight', () => {
+    expect(emptyMessage({ ...searched, loading: true, total: 0, visible: 0 }, 'climate')).toBe(
+      'Searching…',
+    )
+  })
+
+  it('does not flash the previous result state while loading', () => {
+    // Mid-search the old counts are still in state; "nothing found" would be wrong, not just early.
+    const message = emptyMessage({ ...searched, loading: true, total: 0, visible: 0 }, 'climate')
+
+    expect(message).not.toBe('No articles found for “climate”.')
+  })
+
+  it('prefers the loading message over a failure from the previous attempt', () => {
+    const message = emptyMessage(
+      { ...searched, loading: true, failed: true, total: 0, visible: 0 },
+      'climate',
+    )
+
+    expect(message).toBe('Searching…')
   })
 
   it('says nothing while there are articles to show', () => {
@@ -177,7 +199,10 @@ describe('emptyMessage', () => {
   })
 
   it('does not claim nothing was found when the request failed', () => {
-    const message = emptyMessage({ searched: true, failed: true, total: 0, visible: 0 }, 'climate')
+    const message = emptyMessage(
+      { searched: true, loading: false, failed: true, total: 0, visible: 0 },
+      'climate',
+    )
 
     expect(message).toBe('Something went wrong. Please try again.')
   })

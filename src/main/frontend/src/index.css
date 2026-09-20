@@ -138,9 +138,15 @@ body {
   padding: var(--space-2) var(--space-4);
 }
 
-.search button:hover {
+.search button:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+
+.search button:disabled {
+  background: var(--line-strong);
+  border-color: var(--line-strong);
+  cursor: default;
 }
 
 /* ---------- filters ---------- */

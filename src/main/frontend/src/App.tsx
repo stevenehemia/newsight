@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
 import {
   applyFilters,
@@ -22,16 +22,38 @@ export default function App() {
   // The query that produced the current results, which may differ from what is in the box now.
   const [searched, setSearched] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const inFlight = useRef<AbortController | null>(null)
 
   async function search(event: FormEvent) {
     event.preventDefault()
-    const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`)
+    // Drop any search still in flight: without this, a slow first response can arrive after a
+    // faster second one and overwrite it with results for a query the user has moved on from.
+    inFlight.current?.abort()
+    const controller = new AbortController()
+    inFlight.current = controller
+
     setSearched(query)
     setFilters(NO_FILTERS) // the old filters belong to the old results
-    // Full error handling comes later; this only stops a failed request being reported
-    // as "no articles found", which would be untrue.
-    setFailed(!response.ok)
-    setResults(response.ok ? await response.json() : null)
+    setResults(null) // clear the previous results rather than showing them under "Searching…"
+    setFailed(false)
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+      })
+      setFailed(!response.ok)
+      setResults(response.ok ? await response.json() : null)
+    } catch {
+      // An aborted request was replaced by a newer one, which owns the state now.
+      if (controller.signal.aborted) return
+      setFailed(true)
+    } finally {
+      // Same reason: the newer search is still loading, so do not switch its state off.
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
+    }
   }
 
   const articles = results?.articles ?? []
@@ -39,7 +61,7 @@ export default function App() {
   const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
   const message = emptyMessage(
-    { searched: searched !== null, failed, total: articles.length, visible: visible.length },
+    { searched: searched !== null, loading, failed, total: articles.length, visible: visible.length },
     searched ?? '',
   )
 
@@ -62,7 +84,11 @@ export default function App() {
           placeholder="Search news"
           aria-label="Search news"
         />
-        <button type="submit">Search</button>
+        {/* Disabled while a search runs, to stop double submits. The label stays "Search": the
+            results area already says "Searching…", and saying it twice is noise. */}
+        <button type="submit" disabled={loading}>
+          Search
+        </button>
       </form>
 
       {notes.length > 0 && (
@@ -115,7 +141,13 @@ export default function App() {
         </p>
       )}
 
-      {message && <p className="empty">{message}</p>}
+      {/* role="status" announces the message to a screen reader; without it the wait between
+          pressing Search and results appearing is silent. */}
+      {message && (
+        <p className="empty" role="status" aria-busy={loading}>
+          {message}
+        </p>
+      )}
 
       <ul className="results">
         {visible.map((article, index) => (
