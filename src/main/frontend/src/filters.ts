@@ -50,7 +50,7 @@ export type Filters = {
 
 export const NO_FILTERS: Filters = { sources: [], categories: [], datePreset: null }
 
-/** One chip: its label, how many articles it would leave, and (for dates) which preset it is. */
+/** One facet value: its label, how many articles it would leave, and (for dates) its preset id. */
 export type Option = { value: string; count: number; id?: string }
 
 export function categoryOf(article: Article): string {

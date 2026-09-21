@@ -154,6 +154,10 @@ body {
   cursor: default;
 }
 
+.recent {
+  margin-bottom: var(--space-4);
+}
+
 /* ---------- filters ---------- */
 
 .filters {
