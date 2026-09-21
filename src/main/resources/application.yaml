@@ -1,3 +1,7 @@
+server:
+  # Hosts tell the app which port to use via PORT; 8080 locally where they don't.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: newsight

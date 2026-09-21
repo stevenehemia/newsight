@@ -334,3 +334,20 @@ body {
   margin-top: var(--space-8);
   padding-top: var(--space-4);
 }
+
+.attribution p {
+  margin: 0 0 var(--space-3);
+}
+
+.attribution-logos {
+  align-items: center;
+  display: flex;
+  gap: var(--space-4);
+}
+
+/* Sized by height so each keeps its own proportions, and kept well below the 3.5rem wordmark:
+   NYT's terms require their logo not to be the most prominent on the page. */
+.attribution-logos img {
+  height: 1.5rem;
+  width: auto;
+}

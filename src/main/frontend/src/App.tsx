@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
+import guardianLogo from './assets/powered-by-guardian.png'
+import nytLogo from './assets/powered-by-nytimes.png'
 import {
   applyFilters,
   categoryOptions,
@@ -198,12 +200,22 @@ export default function App() {
         ))}
       </ul>
 
-      {/* Before deploying publicly this needs two logos: NYT's, linked to developer.nytimes.com,
-          and a "Powered by The Guardian" logo. Both terms require them on any page showing their
-          content. */}
+      {/* Both providers' terms require their logo on any page showing their content, unaltered,
+          and NYT's must link to developer.nytimes.com. Real alt text, not empty: these are
+          attribution, not decoration. */}
       <footer className="attribution">
-        News from Hacker News, The New York Times and The Guardian. Headlines link to the original
-        articles.
+        <p>
+          News from Hacker News, The New York Times and The Guardian. Headlines link to the original
+          articles.
+        </p>
+        <div className="attribution-logos">
+          <a href="https://developer.nytimes.com" target="_blank" rel="noreferrer">
+            <img src={nytLogo} alt="The New York Times" />
+          </a>
+          <a href="https://www.theguardian.com" target="_blank" rel="noreferrer">
+            <img src={guardianLogo} alt="Powered by The Guardian" />
+          </a>
+        </div>
       </footer>
     </div>
   )
