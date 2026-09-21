@@ -41,6 +41,11 @@ body {
   font-family: var(--font);
   line-height: 1.55;
   margin: 0;
+  /* Inherited by everything: a long unbroken string - a 200-character query echoed back, or a URL
+     inside a Hacker News summary - has no break opportunity and would otherwise run past the
+     container. "break-word" only breaks when the word would overflow, unlike "anywhere", which
+     also lets flex items shrink below their content. */
+  overflow-wrap: break-word;
 }
 
 /* One comfortable column: long lines are tiring to read. */
