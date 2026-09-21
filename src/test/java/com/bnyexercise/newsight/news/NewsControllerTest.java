@@ -76,11 +76,39 @@ class NewsControllerTest {
     }
 
     @Test
-    void returnsServiceUnavailableWhenEverySourceFails() throws Exception {
-        given(newsService.search(any())).willThrow(new NewsUnavailableException());
+    void returnsServiceUnavailableWithTheReasonsWhenEverySourceFails() throws Exception {
+        given(newsService.search(any()))
+                .willThrow(
+                        new NewsUnavailableException(
+                                new SearchResults(
+                                        List.of(),
+                                        List.of(),
+                                        List.of(
+                                                new SearchResults.SourceNote("The Guardian", "rate limited"),
+                                                new SearchResults.SourceNote(
+                                                        "Hacker News", "temporarily unavailable")))));
 
         mockMvc.perform(get("/api/news/search").param("q", "spring"))
-                .andExpect(status().isServiceUnavailable());
+                .andExpect(status().isServiceUnavailable())
+                // The body matters: a bare 503 would leave the UI unable to say what failed.
+                .andExpect(jsonPath("$.articles").isEmpty())
+                .andExpect(jsonPath("$.unavailable[0].source").value("The Guardian"))
+                .andExpect(jsonPath("$.unavailable[0].reason").value("rate limited"))
+                .andExpect(jsonPath("$.unavailable[1].source").value("Hacker News"));
+    }
+
+    @Test
+    void rejectsAQueryLongerThanTheProvidersAccept() throws Exception {
+        mockMvc.perform(get("/api/news/search").param("q", "x".repeat(201)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsAQueryAtTheLimit() throws Exception {
+        given(newsService.search(any())).willReturn(new SearchResults(List.of(), List.of(), List.of()));
+
+        mockMvc.perform(get("/api/news/search").param("q", "x".repeat(200)))
+                .andExpect(status().isOk());
     }
 
     @Test

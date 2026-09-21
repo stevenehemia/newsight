@@ -52,8 +52,17 @@ export default function App() {
       const response = await fetch(`/api/news/search?q=${encodeURIComponent(trimmed)}`, {
         signal: controller.signal,
       })
-      setFailure(response.ok ? null : failureFor(response.status))
-      setResults(response.ok ? await response.json() : null)
+      if (response.ok) {
+        setFailure(null)
+        setResults(await response.json())
+      } else {
+        setFailure(failureFor(response.status))
+        // A 503 still carries the per-source reasons, so the notes line can name what failed.
+        // Other statuses have no body worth showing, and a malformed one must not mask the error.
+        setResults(
+          response.status === 503 ? await response.json().catch(() => null) : null,
+        )
+      }
     } catch {
       // An aborted request was replaced by a newer one, which owns the state now.
       if (controller.signal.aborted) return
@@ -94,6 +103,8 @@ export default function App() {
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search news"
           aria-label="Search news"
+          // Matches the backend limit, so the rejection cannot normally be reached.
+          maxLength={200}
         />
         {/* Disabled while a search runs, to stop double submits, and while the box is empty, so a
             blank search cannot be sent. The label stays "Search": the results area already says

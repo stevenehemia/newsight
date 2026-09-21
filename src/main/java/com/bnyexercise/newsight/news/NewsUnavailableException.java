@@ -1,13 +1,22 @@
 package com.bnyexercise.newsight.news;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-/** Every news source failed, so there is nothing to show. Answered as 503 Service Unavailable. */
-@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+/**
+ * Every news source failed, so there is nothing to show.
+ *
+ * <p>Carries the results anyway: the articles are empty, but the per-source reasons are exactly
+ * what the user needs to be told, and a bare 503 would throw them away. {@link NewsController}
+ * answers 503 with this body.
+ */
 public class NewsUnavailableException extends RuntimeException {
 
-    public NewsUnavailableException() {
+    private final SearchResults results;
+
+    public NewsUnavailableException(SearchResults results) {
         super("No news source is currently available");
+        this.results = results;
+    }
+
+    public SearchResults results() {
+        return results;
     }
 }
