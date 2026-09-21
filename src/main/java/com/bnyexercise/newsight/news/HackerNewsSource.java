@@ -18,7 +18,7 @@ import org.springframework.web.client.RestClientException;
  * {@code objectID}.
  */
 @Component
-public class HackerNewsSource implements NewsSource {
+public class HackerNewsSource implements NewsSource, CountingSource {
 
     private static final String SOURCE_NAME = "Hacker News";
     private static final String ITEM_URL = "https://news.ycombinator.com/item?id=";
@@ -61,6 +61,32 @@ public class HackerNewsSource implements NewsSource {
                 .toList();
     }
 
+    /**
+     * Counts matches in a period without fetching any of them: {@code hitsPerPage=0} makes the
+     * response just a number, so eight weeks costs eight tiny calls.
+     */
+    @Override
+    public long countMatches(String query, Instant from, Instant to) {
+        CountResponse response;
+        try {
+            response =
+                    client.get()
+                            .uri(uri -> uri.path("/search")
+                                    .queryParam("query", "{q}")
+                                    .queryParam("tags", "story")
+                                    .queryParam("hitsPerPage", "0")
+                                    // Half-open, matching Timeline.Week: > start, <= end.
+                                    .queryParam("numericFilters", "created_at_i>{from},created_at_i<={to}")
+                                    .build(query, from.getEpochSecond(), to.getEpochSecond()))
+                            .retrieve()
+                            .body(CountResponse.class);
+        } catch (RestClientException ex) {
+            throw new NewsSourceException(
+                    NewsSourceException.UNAVAILABLE, "Hacker News count failed: " + ex.getMessage(), ex);
+        }
+        return response == null ? 0 : response.nbHits();
+    }
+
     private Article toArticle(Hit hit) {
         Instant publishedAt = parseInstant(hit.createdAt());
         if (publishedAt == null) {
@@ -93,6 +119,9 @@ public class HackerNewsSource implements NewsSource {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SearchResponse(List<Hit> hits) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record CountResponse(@JsonProperty("nbHits") long nbHits) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Hit(

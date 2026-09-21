@@ -1,6 +1,8 @@
 package com.bnyexercise.newsight.news;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,6 +26,8 @@ class NewsControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private NewsService newsService;
+
+    @MockitoBean private TimelineService timelineService;
 
     @Test
     void returnsArticlesForQuery() throws Exception {
@@ -95,6 +99,36 @@ class NewsControllerTest {
                 .andExpect(jsonPath("$.unavailable[0].source").value("The Guardian"))
                 .andExpect(jsonPath("$.unavailable[0].reason").value("rate limited"))
                 .andExpect(jsonPath("$.unavailable[1].source").value("Hacker News"));
+    }
+
+    @Test
+    void returnsWeeklyCountsForTheTimeline() throws Exception {
+        given(timelineService.weekly(eq("climate"), anyInt(), any()))
+                .willReturn(
+                        new Timeline(
+                                "Hacker News",
+                                List.of(
+                                        new Timeline.Week(
+                                                Instant.parse("2026-09-07T00:00:00Z"),
+                                                Instant.parse("2026-09-14T00:00:00Z"),
+                                                12),
+                                        new Timeline.Week(
+                                                Instant.parse("2026-09-14T00:00:00Z"),
+                                                Instant.parse("2026-09-21T00:00:00Z"),
+                                                31))));
+
+        mockMvc.perform(get("/api/news/timeline").param("q", "climate"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("Hacker News"))
+                .andExpect(jsonPath("$.weeks[0].count").value(12))
+                .andExpect(jsonPath("$.weeks[1].count").value(31));
+    }
+
+    @Test
+    void appliesTheSameValidationToTheTimeline() throws Exception {
+        mockMvc.perform(get("/api/news/timeline").param("q", "  ")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/news/timeline").param("q", "x".repeat(201)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

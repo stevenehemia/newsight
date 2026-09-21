@@ -155,6 +155,34 @@ class HackerNewsSourceTest {
     }
 
     @Test
+    void countsMatchesWithoutFetchingArticles() {
+        server.expect(requestTo(containsString("hitsPerPage=0")))
+                .andExpect(queryParam("query", "rust"))
+                // Half-open range, in epoch seconds, so weeks cannot double-count a story.
+                .andExpect(requestTo(containsString("created_at_i%3E1755000000")))
+                .andExpect(requestTo(containsString("created_at_i%3C%3D1755604800")))
+                .andRespond(withJson("""
+                        {"hits": [], "nbHits": 319, "hitsPerPage": 0}
+                        """));
+
+        long count =
+                source.countMatches(
+                        "rust", Instant.ofEpochSecond(1755000000), Instant.ofEpochSecond(1755604800));
+
+        assertThat(count).isEqualTo(319);
+        server.verify();
+    }
+
+    @Test
+    void reportsACountFailureLikeAnyOtherSourceFailure() {
+        server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> source.countMatches("rust", Instant.EPOCH, Instant.now()))
+                .isInstanceOf(NewsSourceException.class);
+    }
+
+    @Test
     void reportsHttpErrorsAsSourceFailures() {
         server.expect(requestTo(startsWith("https://hn.algolia.com/api/v1/search")))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));

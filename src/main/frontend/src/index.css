@@ -241,6 +241,79 @@ body {
 
 /* ---------- messages ---------- */
 
+/* Same card as the filter panel, so the two read as one band of context above the results. */
+.timeline {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.timeline h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+}
+
+/* Fixed height rather than an aspect ratio: the bars are read against each other, and a chart
+   that grew with the window would make the same counts look more dramatic on a wide screen. */
+.chart {
+  align-items: stretch;
+  display: flex;
+  gap: var(--space-1);
+  height: 120px;
+}
+
+.bar-slot {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The track takes the leftover height, so every bar is measured against the same baseline
+   whatever the count above it. */
+.bar-track {
+  display: flex;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.bar {
+  background: var(--accent-soft);
+  border-radius: 3px 3px 0 0;
+  /* A bar with no posts has no height, so the slot reads as empty rather than as a short bar. */
+  min-height: 0;
+  width: 100%;
+}
+
+.bar[data-latest] {
+  background: var(--accent);
+}
+
+.bar-count,
+.bar-week {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-summary {
+  font-size: var(--small);
+  margin: var(--space-3) 0 0;
+}
+
+.timeline-note {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  margin: var(--space-1) 0 0;
+}
+
 .notes {
   background: var(--warn-bg);
   border-left: 3px solid var(--warn-line);

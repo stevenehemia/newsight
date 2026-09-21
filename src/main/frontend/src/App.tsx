@@ -18,6 +18,7 @@ import {
   type SearchResults,
 } from './filters'
 import { addRecent, readRecent, writeRecent } from './recent'
+import { bars, chartLabel, summary as trendSummary, type Timeline } from './timeline'
 import { queryFromSearch, urlForQuery } from './url'
 
 export default function App() {
@@ -30,6 +31,8 @@ export default function App() {
   const [searched, setSearched] = useState<string | null>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [loading, setLoading] = useState(false)
+  const [timeline, setTimeline] = useState<Timeline | null>(null)
+  const [timelineFailed, setTimelineFailed] = useState(false)
   const [recent, setRecent] = useState<string[]>(() => readRecent())
   const inFlight = useRef<AbortController | null>(null)
   const started = useRef(false)
@@ -38,6 +41,27 @@ export default function App() {
   // get that far: a rejection reads like a fault, when the answer is just "type something".
   const trimmed = query.trim()
   const canSearch = trimmed.length > 0
+
+  /**
+   * Loads the coverage timeline alongside the search rather than after it, so the two waits
+   * overlap. Shares the search's controller: abandoning a search abandons its timeline too.
+   *
+   * <p>Failures stop here on purpose. The timeline is an extra — if counting breaks, the articles
+   * are still the answer to what the user asked, so a failure gets one quiet line, not the error
+   * treatment the results area gives a failed search.
+   */
+  const loadTimeline = useCallback(async (term: string, controller: AbortController) => {
+    try {
+      const response = await fetch(`/api/news/timeline?q=${encodeURIComponent(term)}`, {
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error(`timeline responded ${response.status}`)
+      setTimeline(await response.json())
+    } catch {
+      if (controller.signal.aborted) return
+      setTimelineFailed(true)
+    }
+  }, [])
 
   /**
    * Runs a search for a term. Called from the form, a recent chip, a shared link and the back
@@ -57,6 +81,9 @@ export default function App() {
     setResults(null) // clear the previous results rather than showing them under "Searching…"
     setFailure(null)
     setLoading(true)
+    setTimeline(null)
+    setTimelineFailed(false)
+    void loadTimeline(term, controller)
     try {
       const response = await fetch(`/api/news/search?q=${encodeURIComponent(term)}`, {
         signal: controller.signal,
@@ -89,7 +116,7 @@ export default function App() {
         setLoading(false)
       }
     }
-  }, [])
+  }, [loadTimeline])
 
   /** Searches and records it in the URL, so the result can be shared and the back button works. */
   const startSearch = useCallback(
@@ -128,6 +155,8 @@ export default function App() {
         setResults(null)
         setSearched(null)
         setFailure(null)
+        setTimeline(null)
+        setTimelineFailed(false)
       }
     }
     window.addEventListener('popstate', onPopState)
@@ -196,6 +225,11 @@ export default function App() {
           Not included — {notes.map((note) => `${note.source}: ${note.reason}`).join(' · ')}
         </p>
       )}
+
+      {/* Above the filters, not below: these counts describe the topic, not the articles listed
+          underneath, and nothing here responds to a chip being ticked. */}
+      {timeline && <CoverageTimeline timeline={timeline} />}
+      {timelineFailed && <p className="notes">Coverage timeline unavailable for this search.</p>}
 
       {articles.length > 0 && (
         <section className="filters">
@@ -294,6 +328,59 @@ export default function App() {
       </footer>
     </div>
   )
+}
+
+/**
+ * Weekly counts as a row of bars. CSS heights rather than an inline SVG: the chart has to stay
+ * readable from a phone to a wide window, and percentage heights in a flex row reflow for free
+ * where a fixed viewBox would need scaling rules to avoid stretching the bars.
+ */
+function CoverageTimeline({ timeline }: { timeline: Timeline }) {
+  const drawn = bars(timeline.weeks)
+  if (drawn.length === 0) return null
+  // A topic nobody posted about draws eight empty slots that say nothing the sentence does not
+  // say better, so the chart only appears once there is something to compare.
+  const anyCoverage = drawn.some((bar) => bar.count > 0)
+
+  return (
+    <section className="timeline">
+      <h2>Coverage on {timeline.source}</h2>
+      {/* The counts and dates are printed under the bars rather than left to a tooltip, which a
+          touch screen never shows. role="img" stops a screen reader walking 8 empty divs. */}
+      {anyCoverage && (
+        <div className="chart" role="img" aria-label={chartLabel(timeline)}>
+          {drawn.map((bar) => (
+            <div className="bar-slot" key={bar.end}>
+              <span className="bar-count">{bar.count}</span>
+              <div className="bar-track">
+                <div
+                  className="bar"
+                  style={{ height: `${bar.height * 100}%` }}
+                  // The newest week is what the reader is asking about; the rest is context.
+                  data-latest={bar.latest || undefined}
+                />
+              </div>
+              <span className="bar-week">{weekEnding(bar.end)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="timeline-summary">{trendSummary(timeline)}</p>
+      {/* Both caveats matter: the bars count every matching post, not the ~30 articles listed
+          below, and the provider's totals are its own estimate rather than an exact census. */}
+      {anyCoverage && (
+        <p className="timeline-note">
+          Counted across all matching posts, not only the articles listed below. Totals are
+          approximate.
+        </p>
+      )}
+    </section>
+  )
+}
+
+/** Short enough to sit under a bar on a phone: "3 Aug". */
+function weekEnding(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
 /**

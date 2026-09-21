@@ -1,5 +1,6 @@
 package com.bnyexercise.newsight.news;
 
+import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -14,9 +15,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class NewsController {
 
     private final NewsService newsService;
+    private final TimelineService timelineService;
 
-    NewsController(NewsService newsService) {
+    NewsController(NewsService newsService, TimelineService timelineService) {
         this.newsService = newsService;
+        this.timelineService = timelineService;
     }
 
     /**
@@ -26,8 +29,27 @@ public class NewsController {
      */
     private static final int MAX_QUERY_LENGTH = 200;
 
+    /** How many weeks of history the timeline covers. */
+    private static final int TIMELINE_WEEKS = 8;
+
     @GetMapping("/api/news/search")
     SearchResults search(@RequestParam String q) {
+        validate(q);
+        return newsService.search(q);
+    }
+
+    /**
+     * Week-by-week counts for the same query. A separate endpoint rather than part of the search:
+     * it answers a different question, takes longer, and must be able to fail without taking the
+     * articles with it.
+     */
+    @GetMapping("/api/news/timeline")
+    Timeline timeline(@RequestParam String q) {
+        validate(q);
+        return timelineService.weekly(q, TIMELINE_WEEKS, Instant.now());
+    }
+
+    private static void validate(String q) {
         if (!StringUtils.hasText(q)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must not be blank");
         }
@@ -36,7 +58,6 @@ public class NewsController {
                     HttpStatus.BAD_REQUEST,
                     "Search query must be at most " + MAX_QUERY_LENGTH + " characters");
         }
-        return newsService.search(q);
     }
 
     /** Answers 503 with the per-source reasons, rather than an error page that explains nothing. */
