@@ -3,8 +3,9 @@
  * again with the back button.
  *
  * <p>A query parameter on the root path rather than a route like `/search`: the server returns
- * `index.html` for `/` whatever the query string says, so refreshing a shared link works without
- * the backend needing a fallback for unknown paths.
+ * `index.html` for `/` whatever the query string says, so a shared link survives a refresh on its
+ * own. A *path* does not — `/bookmarks` needs `ClientRoutes` on the Java side to forward it, or it
+ * answers a Whitelabel 404 (verified against a packaged build). See `route.ts`.
  */
 
 /** Reads the term from a location search string, e.g. "?q=climate". Empty when absent. */
