@@ -123,21 +123,49 @@ export function dateOptions(articles: Article[], filters: Filters, now = new Dat
   }))
 }
 
+/**
+ * Why a search produced nothing, when the cause was not the search itself. Kept apart from the
+ * HTTP status so the message logic reads as intent rather than numbers.
+ */
+export type Failure = 'invalid-query' | 'sources-unavailable' | 'network' | 'unknown'
+
+/** Maps a response status onto what the user needs to be told. */
+export function failureFor(status: number): Failure {
+  if (status === 400) return 'invalid-query'
+  if (status === 503) return 'sources-unavailable'
+  return 'unknown'
+}
+
 /** What the results area should say when it has no articles to show. */
 export type SearchState = {
   /** False before the first search, when the page should stay quiet. */
   searched: boolean
-  /** The request itself failed, so "nothing found" would be a lie. */
-  failed: boolean
+  /** A request is in flight. */
+  loading: boolean
+  /** Null when the request itself was fine, whatever it returned. */
+  failure: Failure | null
   /** Articles the search returned, before filtering. */
   total: number
   /** Articles left after filtering. */
   visible: number
 }
 
+const FAILURE_MESSAGES: Record<Failure, string> = {
+  // The UI blocks blank searches, so a 400 means something we did not anticipate rather than an
+  // empty box — hence "try different words" rather than "type something".
+  'invalid-query': 'That search could not be read. Try different words.',
+  // Every source failed. Worth saying so plainly: it is temporary and not the user's doing.
+  'sources-unavailable': 'No news sources are responding right now. Please try again shortly.',
+  // fetch threw, so the request never got an answer: the server, the network or the browser.
+  network: 'Could not reach Newsight. Check your connection and try again.',
+  unknown: 'Something went wrong. Please try again.',
+}
+
 export function emptyMessage(state: SearchState, query: string): string | null {
+  // First, so a slow search cannot briefly flash the previous search's "nothing found".
+  if (state.loading) return 'Searching…'
   if (!state.searched) return null
-  if (state.failed) return 'Something went wrong. Please try again.'
+  if (state.failure) return FAILURE_MESSAGES[state.failure]
   if (state.total === 0) return `No articles found for “${query}”.`
   if (state.visible === 0) return 'No articles match these filters.'
   return null

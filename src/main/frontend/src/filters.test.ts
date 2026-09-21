@@ -4,10 +4,12 @@ import {
   categoryOptions,
   dateOptions,
   emptyMessage,
+  failureFor,
   NO_FILTERS,
   sourceOptions,
   toggle,
   type Article,
+  type Failure,
   type Filters,
 } from './filters'
 
@@ -153,11 +155,68 @@ describe('facet counts', () => {
   })
 })
 
+describe('failureFor', () => {
+  it('tells the three causes apart', () => {
+    expect(failureFor(400)).toBe('invalid-query')
+    expect(failureFor(503)).toBe('sources-unavailable')
+    expect(failureFor(500)).toBe('unknown')
+    expect(failureFor(404)).toBe('unknown')
+  })
+})
+
 describe('emptyMessage', () => {
-  const searched = { searched: true, failed: false, total: 5, visible: 5 }
+  const searched = {
+    searched: true,
+    loading: false,
+    failure: null as Failure | null,
+    total: 5,
+    visible: 5,
+  }
+
+  it('says something different for each kind of failure', () => {
+    const messageFor = (failure: Failure) =>
+      emptyMessage({ ...searched, failure, total: 0, visible: 0 }, 'climate')
+
+    expect(messageFor('invalid-query')).toBe('That search could not be read. Try different words.')
+    expect(messageFor('sources-unavailable')).toBe(
+      'No news sources are responding right now. Please try again shortly.',
+    )
+    expect(messageFor('network')).toBe(
+      'Could not reach Newsight. Check your connection and try again.',
+    )
+    expect(messageFor('unknown')).toBe('Something went wrong. Please try again.')
+
+    // Each cause needs its own wording, or the distinction is pointless.
+    const messages = (['invalid-query', 'sources-unavailable', 'network', 'unknown'] as const).map(
+      messageFor,
+    )
+    expect(new Set(messages).size).toBe(4)
+  })
 
   it('says nothing before the first search', () => {
     expect(emptyMessage({ ...searched, searched: false, total: 0, visible: 0 }, '')).toBeNull()
+  })
+
+  it('says it is searching while a request is in flight', () => {
+    expect(emptyMessage({ ...searched, loading: true, total: 0, visible: 0 }, 'climate')).toBe(
+      'Searching…',
+    )
+  })
+
+  it('does not flash the previous result state while loading', () => {
+    // Mid-search the old counts are still in state; "nothing found" would be wrong, not just early.
+    const message = emptyMessage({ ...searched, loading: true, total: 0, visible: 0 }, 'climate')
+
+    expect(message).not.toBe('No articles found for “climate”.')
+  })
+
+  it('prefers the loading message over a failure from the previous attempt', () => {
+    const message = emptyMessage(
+      { ...searched, loading: true, failure: 'network', total: 0, visible: 0 },
+      'climate',
+    )
+
+    expect(message).toBe('Searching…')
   })
 
   it('says nothing while there are articles to show', () => {
@@ -177,7 +236,10 @@ describe('emptyMessage', () => {
   })
 
   it('does not claim nothing was found when the request failed', () => {
-    const message = emptyMessage({ searched: true, failed: true, total: 0, visible: 0 }, 'climate')
+    const message = emptyMessage(
+      { searched: true, loading: false, failure: 'unknown', total: 0, visible: 0 },
+      'climate',
+    )
 
     expect(message).toBe('Something went wrong. Please try again.')
   })

@@ -117,7 +117,17 @@ class NewsServiceTest {
                                 failing("Two", NewsSourceException.UNAVAILABLE)));
 
         assertThatThrownBy(() -> service.search("anything"))
-                .isInstanceOf(NewsUnavailableException.class);
+                .isInstanceOf(NewsUnavailableException.class)
+                // The reasons travel with the failure, or the UI has nothing to show.
+                .satisfies(
+                        thrown ->
+                                assertThat(((NewsUnavailableException) thrown).results().unavailable())
+                                        .extracting(
+                                                SearchResults.SourceNote::source,
+                                                SearchResults.SourceNote::reason)
+                                        .containsExactly(
+                                                tuple("One", "temporarily unavailable"),
+                                                tuple("Two", "temporarily unavailable")));
     }
 
     private static NewsSource failing(String name, String reason) {

@@ -1,15 +1,17 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
 import {
   applyFilters,
   categoryOptions,
   dateOptions,
   emptyMessage,
+  failureFor,
   hasAnyFilter,
   NO_FILTERS,
   presetOf,
   sourceOptions,
   toggle,
+  type Failure,
   type Filters,
   type Option,
   type SearchResults,
@@ -21,17 +23,57 @@ export default function App() {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   // The query that produced the current results, which may differ from what is in the box now.
   const [searched, setSearched] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<Failure | null>(null)
+  const [loading, setLoading] = useState(false)
+  const inFlight = useRef<AbortController | null>(null)
+
+  // Whitespace only is not a search. The backend rejects it with a 400, but the user should never
+  // get that far: a rejection reads like a fault, when the answer is just "type something".
+  const trimmed = query.trim()
+  const canSearch = trimmed.length > 0
 
   async function search(event: FormEvent) {
     event.preventDefault()
-    const response = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`)
-    setSearched(query)
+    if (!canSearch) return // belt and braces; the button is disabled too
+    // Drop any search still in flight: without this, a slow first response can arrive after a
+    // faster second one and overwrite it with results for a query the user has moved on from.
+    inFlight.current?.abort()
+    const controller = new AbortController()
+    inFlight.current = controller
+
+    setSearched(trimmed)
     setFilters(NO_FILTERS) // the old filters belong to the old results
-    // Full error handling comes later; this only stops a failed request being reported
-    // as "no articles found", which would be untrue.
-    setFailed(!response.ok)
-    setResults(response.ok ? await response.json() : null)
+    setResults(null) // clear the previous results rather than showing them under "Searching…"
+    setFailure(null)
+    setLoading(true)
+    try {
+      // Trimmed: surrounding spaces are never meaningful to a search, and sending them would put
+      // them in the "No articles found for …" message too.
+      const response = await fetch(`/api/news/search?q=${encodeURIComponent(trimmed)}`, {
+        signal: controller.signal,
+      })
+      if (response.ok) {
+        setFailure(null)
+        setResults(await response.json())
+      } else {
+        setFailure(failureFor(response.status))
+        // A 503 still carries the per-source reasons, so the notes line can name what failed.
+        // Other statuses have no body worth showing, and a malformed one must not mask the error.
+        setResults(
+          response.status === 503 ? await response.json().catch(() => null) : null,
+        )
+      }
+    } catch {
+      // An aborted request was replaced by a newer one, which owns the state now.
+      if (controller.signal.aborted) return
+      // fetch only throws when the request never completed: no server, no network, no response.
+      setFailure('network')
+    } finally {
+      // Same reason: the newer search is still loading, so do not switch its state off.
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
+    }
   }
 
   const articles = results?.articles ?? []
@@ -39,7 +81,7 @@ export default function App() {
   const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
   const message = emptyMessage(
-    { searched: searched !== null, failed, total: articles.length, visible: visible.length },
+    { searched: searched !== null, loading, failure, total: articles.length, visible: visible.length },
     searched ?? '',
   )
 
@@ -61,8 +103,15 @@ export default function App() {
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search news"
           aria-label="Search news"
+          // Matches the backend limit, so the rejection cannot normally be reached.
+          maxLength={200}
         />
-        <button type="submit">Search</button>
+        {/* Disabled while a search runs, to stop double submits, and while the box is empty, so a
+            blank search cannot be sent. The label stays "Search": the results area already says
+            "Searching…", and saying it twice is noise. */}
+        <button type="submit" disabled={loading || !canSearch}>
+          Search
+        </button>
       </form>
 
       {notes.length > 0 && (
@@ -115,7 +164,13 @@ export default function App() {
         </p>
       )}
 
-      {message && <p className="empty">{message}</p>}
+      {/* role="status" announces the message to a screen reader; without it the wait between
+          pressing Search and results appearing is silent. */}
+      {message && (
+        <p className="empty" role="status" aria-busy={loading}>
+          {message}
+        </p>
+      )}
 
       <ul className="results">
         {visible.map((article, index) => (
