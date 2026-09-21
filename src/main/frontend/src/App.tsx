@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import logo from './assets/newsight.png'
 import guardianLogo from './assets/powered-by-guardian.png'
 import nytLogo from './assets/powered-by-nytimes.png'
@@ -15,48 +15,61 @@ import {
   toggle,
   type Failure,
   type Filters,
-  type Option,
   type SearchResults,
 } from './filters'
+import { addRecent, readRecent, writeRecent } from './recent'
+import { queryFromSearch, urlForQuery } from './url'
 
 export default function App() {
-  const [query, setQuery] = useState('')
+  // A shared link arrives with ?q=… already set, so the box starts with it rather than being
+  // filled in by an effect afterwards.
+  const [query, setQuery] = useState(() => queryFromSearch(window.location.search))
   const [results, setResults] = useState<SearchResults | null>(null)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   // The query that produced the current results, which may differ from what is in the box now.
   const [searched, setSearched] = useState<string | null>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [loading, setLoading] = useState(false)
+  const [recent, setRecent] = useState<string[]>(() => readRecent())
   const inFlight = useRef<AbortController | null>(null)
+  const started = useRef(false)
 
   // Whitespace only is not a search. The backend rejects it with a 400, but the user should never
   // get that far: a rejection reads like a fault, when the answer is just "type something".
   const trimmed = query.trim()
   const canSearch = trimmed.length > 0
 
-  async function search(event: FormEvent) {
-    event.preventDefault()
-    if (!canSearch) return // belt and braces; the button is disabled too
+  /**
+   * Runs a search for a term. Called from the form, a recent chip, a shared link and the back
+   * button, so it takes the term rather than reading state. useCallback with no dependencies is
+   * safe because it only touches setters and refs, which React keeps stable.
+   */
+  const runSearch = useCallback(async (term: string) => {
+    if (!term) return
     // Drop any search still in flight: without this, a slow first response can arrive after a
     // faster second one and overwrite it with results for a query the user has moved on from.
     inFlight.current?.abort()
     const controller = new AbortController()
     inFlight.current = controller
 
-    setSearched(trimmed)
+    setSearched(term)
     setFilters(NO_FILTERS) // the old filters belong to the old results
     setResults(null) // clear the previous results rather than showing them under "Searching…"
     setFailure(null)
     setLoading(true)
     try {
-      // Trimmed: surrounding spaces are never meaningful to a search, and sending them would put
-      // them in the "No articles found for …" message too.
-      const response = await fetch(`/api/news/search?q=${encodeURIComponent(trimmed)}`, {
+      const response = await fetch(`/api/news/search?q=${encodeURIComponent(term)}`, {
         signal: controller.signal,
       })
       if (response.ok) {
         setFailure(null)
         setResults(await response.json())
+        // Only searches that worked are worth offering again.
+        setRecent((previous) => {
+          const next = addRecent(previous, term)
+          writeRecent(next)
+          return next
+        })
       } else {
         setFailure(failureFor(response.status))
         // A 503 still carries the per-source reasons, so the notes line can name what failed.
@@ -76,6 +89,55 @@ export default function App() {
         setLoading(false)
       }
     }
+  }, [])
+
+  /** Searches and records it in the URL, so the result can be shared and the back button works. */
+  const startSearch = useCallback(
+    (term: string) => {
+      const target = urlForQuery(term, window.location.pathname)
+      // Only a new entry for a different URL: searching the same term twice should not need two
+      // presses of the back button to leave.
+      if (target !== window.location.pathname + window.location.search) {
+        window.history.pushState({}, '', target)
+      }
+      setQuery(term)
+      void runSearch(term)
+    },
+    [runSearch],
+  )
+
+  // …and the search itself runs once on arrival.
+  useEffect(() => {
+    if (started.current) return // StrictMode runs effects twice in development
+    started.current = true
+    const initial = queryFromSearch(window.location.search)
+    // runSearch sets state before its first await, which the rule flags. That is what this effect
+    // is for: synchronising with two external systems, the URL and the API, once on mount.
+    // oxlint-disable-next-line react/set-state-in-effect
+    if (initial) void runSearch(initial)
+  }, [runSearch])
+
+  // Back and forward move between searches rather than leaving the app.
+  useEffect(() => {
+    function onPopState() {
+      const term = queryFromSearch(window.location.search)
+      setQuery(term)
+      if (term) {
+        void runSearch(term)
+      } else {
+        setResults(null)
+        setSearched(null)
+        setFailure(null)
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [runSearch])
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!canSearch) return // belt and braces; the button is disabled too
+    startSearch(trimmed)
   }
 
   const articles = results?.articles ?? []
@@ -99,7 +161,7 @@ export default function App() {
         <p className="tagline">Bringing news together, delivering insights faster.</p>
       </header>
 
-      <form className="search" onSubmit={search}>
+      <form className="search" onSubmit={onSubmit}>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -115,6 +177,19 @@ export default function App() {
           Search
         </button>
       </form>
+
+      {/* Kept in this browser only, so there are no accounts and no server state to manage.
+          Same row component as the filters: capped, with the same "Show all N" toggle. */}
+      <div className="recent">
+        <FilterGroup
+          label="Recent"
+          options={recent.map((term) => ({ value: term }))}
+          selected={[]}
+          limit={5}
+          pressable={false}
+          onToggle={(term) => startSearch(term)}
+        />
+      </div>
 
       {notes.length > 0 && (
         <p className="notes">
@@ -221,19 +296,32 @@ export default function App() {
   )
 }
 
-/** One row of the filter bar: a label and a set of toggleable chips with counts. */
+/**
+ * A chip in the row. Facet options always carry a count and satisfy this; recent searches have
+ * nothing to count, so the count is optional here rather than in {@link Option}, where the sorting
+ * code relies on it being present.
+ */
+type Chip = { value: string; count?: number; id?: string }
+
+/** One row of chips: a label, the chips, and a toggle when there are more than `limit`. */
 function FilterGroup({
   label,
   options,
   selected,
   limit,
+  pressable = true,
   onToggle,
 }: {
   label: string
-  options: Option[]
+  options: Chip[]
   selected: string[]
   /** Show at most this many chips until the user asks for the rest. */
   limit?: number
+  /**
+   * False for chips that act rather than toggle, like a recent search. aria-pressed would
+   * otherwise announce them as switches that are never on.
+   */
+  pressable?: boolean
   onToggle: (value: string, id?: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -257,13 +345,14 @@ function FilterGroup({
               type="button"
               // The selected look is driven by aria-pressed in CSS, so the styling and the state
               // screen readers announce cannot disagree.
-              aria-pressed={isSelected}
+              aria-pressed={pressable ? isSelected : undefined}
               // Nothing left to show, and not currently selected: leave it visible but unusable.
               disabled={option.count === 0 && !isSelected}
               className="chip"
               onClick={() => onToggle(option.value, option.id)}
             >
-              {option.value} ({option.count})
+              {option.value}
+              {option.count !== undefined && ` (${option.count})`}
             </button>
           )
         })}
