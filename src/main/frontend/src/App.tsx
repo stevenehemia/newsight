@@ -33,7 +33,7 @@ import {
   writeBookmarks,
   type Bookmark,
 } from './bookmarks'
-import { addRecent, readRecent, writeRecent } from './recent'
+import { addRecent, clearRecent, readRecent, writeRecent } from './recent'
 import { BOOKMARKS_PATH, routeOf, SEARCH_PATH, type Route } from './route'
 import { queryFromSearch, urlForQuery } from './url'
 
@@ -55,6 +55,7 @@ export default function App() {
   const [writeFailed, setWriteFailed] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
   const started = useRef(false)
+  const searchInput = useRef<HTMLInputElement>(null)
   // What the current results are for, readable from the popstate listener without making it
   // re-subscribe on every search. Coming back from /bookmarks must not refetch what is on screen.
   const searchedFor = useRef<string | null>(null)
@@ -218,6 +219,15 @@ export default function App() {
     setWriteFailed(!writeBookmarks(next))
   }
 
+  function forgetRecent() {
+    setRecent([])
+    clearRecent()
+    // The whole row disappears along with the button that was just clicked, so focus would fall
+    // back to the body. Hand it to the search box, which is where someone clearing history is
+    // most likely headed next.
+    searchInput.current?.focus()
+  }
+
   const articles = results?.articles ?? []
   const visible = applyFilters(articles, filters)
   // Returns to the search that was on screen rather than a bare "/", so the results survive the
@@ -256,6 +266,7 @@ export default function App() {
         <>
           <form className="search" onSubmit={onSubmit}>
             <input
+              ref={searchInput}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search news"
@@ -281,6 +292,7 @@ export default function App() {
               limit={5}
               pressable={false}
               onToggle={(term) => startSearch(term)}
+              onClear={forgetRecent}
             />
           </div>
         </>
@@ -501,6 +513,7 @@ function FilterGroup({
   limit,
   pressable = true,
   onToggle,
+  onClear,
 }: {
   label: string
   options: Chip[]
@@ -513,6 +526,8 @@ function FilterGroup({
    */
   pressable?: boolean
   onToggle: (value: string, id?: string) => void
+  /** Given only by rows whose contents can be thrown away, which today is recent searches. */
+  onClear?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   if (options.length === 0) return null
@@ -550,6 +565,14 @@ function FilterGroup({
         {limit !== undefined && options.length > limit && (
           <button type="button" className="link" onClick={() => setExpanded(!expanded)}>
             {expanded ? 'Show fewer' : `Show all ${options.length}`}
+          </button>
+        )}
+
+        {/* Same treatment as "Clear filters": a text link, not a chip, because it acts on the row
+            rather than being one of its values. */}
+        {onClear && (
+          <button type="button" className="link" onClick={onClear}>
+            Clear
           </button>
         )}
       </div>

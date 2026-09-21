@@ -39,3 +39,15 @@ export function writeRecent(recent: string[]): void {
     // Storage full or unavailable; not worth failing a search over.
   }
 }
+
+/**
+ * Forgets every recent search. Removes the key rather than storing an empty list, so clearing
+ * leaves nothing behind — the point of the control is that the history is gone.
+ */
+export function clearRecent(): void {
+  try {
+    localStorage.removeItem(KEY)
+  } catch {
+    // Same as writeRecent: storage being unavailable is not worth failing over.
+  }
+}
