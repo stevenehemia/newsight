@@ -1,0 +1,15 @@
+# Everything here would otherwise be uploaded to the Docker daemon as build context: slow, and a
+# way for secrets or stale build output to end up inside an image.
+**/node_modules
+**/dist
+target/
+.git
+.github
+.idea
+.env
+.env.*
+!.env.example
+*.log
+# Personal notes, gitignored but present locally.
+CLAUDE.md
+HELP.md
