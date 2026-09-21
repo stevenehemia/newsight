@@ -9,7 +9,18 @@ spring:
     clients:
       # Applies to every news source. A provider that hangs counts as failed, so the other
       # sources still answer instead of the whole search waiting on it.
-      connect-timeout: 3s
+      #
+      # connect-timeout was 3s, which the deployed app failed on every cold start:
+      #   "The Guardian failed: ... HTTP connect timed out"
+      # The first outbound HTTPS call in a fresh JVM also loads the TLS stack, parses the trust
+      # store, seeds SecureRandom and runs all of it JIT-cold. Whichever source goes first pays
+      # it, and on Render's throttled free tier that exceeded 3s. Measured on a desktop it costs
+      # 200-400ms, so the deployed cost is several times that.
+      #
+      # 10s is deliberately generous, to establish whether connection setup is the cause at all
+      # rather than to be the final value — tune it down once a cold search has been timed. Note
+      # sources are called sequentially, so connect timeouts are additive in the worst case.
+      connect-timeout: 10s
       read-timeout: 5s
 
 newsight:
