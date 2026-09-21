@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from 'react'
 import logo from './assets/newsight.png'
 import guardianLogo from './assets/powered-by-guardian.png'
 import nytLogo from './assets/powered-by-nytimes.png'
@@ -13,11 +20,21 @@ import {
   presetOf,
   sourceOptions,
   toggle,
+  type Article,
   type Failure,
   type Filters,
   type SearchResults,
 } from './filters'
+import {
+  isBookmarked,
+  readBookmarks,
+  removeBookmark,
+  toggleBookmark,
+  writeBookmarks,
+  type Bookmark,
+} from './bookmarks'
 import { addRecent, readRecent, writeRecent } from './recent'
+import { BOOKMARKS_PATH, routeOf, SEARCH_PATH, type Route } from './route'
 import { queryFromSearch, urlForQuery } from './url'
 
 export default function App() {
@@ -31,8 +48,16 @@ export default function App() {
   const [failure, setFailure] = useState<Failure | null>(null)
   const [loading, setLoading] = useState(false)
   const [recent, setRecent] = useState<string[]>(() => readRecent())
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => readBookmarks())
+  // Bookmarks are their own page at /bookmarks, not a filtered view: filters narrow the current
+  // search, and a bookmarked article usually came from a different one.
+  const [route, setRoute] = useState<Route>(() => routeOf(window.location.pathname))
+  const [writeFailed, setWriteFailed] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
   const started = useRef(false)
+  // What the current results are for, readable from the popstate listener without making it
+  // re-subscribe on every search. Coming back from /bookmarks must not refetch what is on screen.
+  const searchedFor = useRef<string | null>(null)
 
   // Whitespace only is not a search. The backend rejects it with a 400, but the user should never
   // get that far: a rejection reads like a fault, when the answer is just "type something".
@@ -53,10 +78,14 @@ export default function App() {
     inFlight.current = controller
 
     setSearched(term)
+    searchedFor.current = term
     setFilters(NO_FILTERS) // the old filters belong to the old results
     setResults(null) // clear the previous results rather than showing them under "Searching…"
     setFailure(null)
     setLoading(true)
+    // Searching means you want results, even if you were looking at the bookmarks page. Covers
+    // the form, a recent chip, a shared link and the back button, since all four come through here.
+    setRoute('search')
     try {
       const response = await fetch(`/api/news/search?q=${encodeURIComponent(term)}`, {
         signal: controller.signal,
@@ -94,7 +123,9 @@ export default function App() {
   /** Searches and records it in the URL, so the result can be shared and the back button works. */
   const startSearch = useCallback(
     (term: string) => {
-      const target = urlForQuery(term, window.location.pathname)
+      // Always the search path, never the current one: searching from /bookmarks must land on
+      // /?q=…, not /bookmarks?q=….
+      const target = urlForQuery(term, SEARCH_PATH)
       // Only a new entry for a different URL: searching the same term twice should not need two
       // presses of the back button to leave.
       if (target !== window.location.pathname + window.location.search) {
@@ -117,22 +148,46 @@ export default function App() {
     if (initial) void runSearch(initial)
   }, [runSearch])
 
-  // Back and forward move between searches rather than leaving the app.
+  // Back and forward move between searches and the bookmarks page rather than leaving the app.
   useEffect(() => {
     function onPopState() {
+      const next = routeOf(window.location.pathname)
+      setRoute(next)
+      if (next === 'bookmarks') return // nothing to fetch, and the results stay for the way back
+
       const term = queryFromSearch(window.location.search)
       setQuery(term)
-      if (term) {
-        void runSearch(term)
-      } else {
+      if (!term) {
         setResults(null)
         setSearched(null)
+        searchedFor.current = null
         setFailure(null)
+      } else if (term !== searchedFor.current) {
+        // Only when it is a different search. Otherwise returning from /bookmarks would refetch
+        // results that are still on screen, for no gain and a call against every provider.
+        void runSearch(term)
       }
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [runSearch])
+
+  /** Moves between the app's two pages without a reload, keeping the back button working. */
+  function go(path: string) {
+    if (path !== window.location.pathname + window.location.search) {
+      window.history.pushState({}, '', path)
+    }
+    setRoute(routeOf(path))
+  }
+
+  /** Leaves modified clicks to the browser, so "open in new tab" still does that. */
+  function navigate(event: MouseEvent<HTMLAnchorElement>, path: string) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return
+    }
+    event.preventDefault()
+    go(path)
+  }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -140,8 +195,21 @@ export default function App() {
     startSearch(trimmed)
   }
 
+  /**
+   * Storage is the source of truth, so the write happens with the state change rather than in an
+   * effect afterwards. writeBookmarks reports failure — a full or blocked store has to be said out
+   * loud, or the user believes an article was bookmarked when it was not.
+   */
+  function persist(next: Bookmark[]) {
+    setBookmarks(next)
+    setWriteFailed(!writeBookmarks(next))
+  }
+
   const articles = results?.articles ?? []
   const visible = applyFilters(articles, filters)
+  // Returns to the search that was on screen rather than a bare "/", so the results survive the
+  // round trip and nothing is fetched again.
+  const backToSearch = urlForQuery(searched ?? '', SEARCH_PATH)
   const preset = presetOf(filters)
   const notes = results ? [...results.skipped, ...results.unavailable] : []
   const message = emptyMessage(
@@ -161,43 +229,82 @@ export default function App() {
         <p className="tagline">Bringing news together, delivering insights faster.</p>
       </header>
 
-      <form className="search" onSubmit={onSubmit}>
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search news"
-          aria-label="Search news"
-          // Matches the backend limit, so the rejection cannot normally be reached.
-          maxLength={200}
-        />
-        {/* Disabled while a search runs, to stop double submits, and while the box is empty, so a
-            blank search cannot be sent. The label stays "Search": the results area already says
-            "Searching…", and saying it twice is noise. */}
-        <button type="submit" disabled={loading || !canSearch}>
-          Search
-        </button>
-      </form>
+      {/* The bookmarks page has no search box and no recent searches: "← Back to search" is the
+          way out, and repeating the search controls on a page about saved articles would blur what
+          the page is for. Searching from here means going back first, which is one click. */}
+      {route === 'search' && (
+        <>
+          <form className="search" onSubmit={onSubmit}>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search news"
+              aria-label="Search news"
+              // Matches the backend limit, so the rejection cannot normally be reached.
+              maxLength={200}
+            />
+            {/* Disabled while a search runs, to stop double submits, and while the box is empty,
+                so a blank search cannot be sent. The label stays "Search": the results area
+                already says "Searching…", and saying it twice is noise. */}
+            <button type="submit" disabled={loading || !canSearch}>
+              Search
+            </button>
+          </form>
 
-      {/* Kept in this browser only, so there are no accounts and no server state to manage.
-          Same row component as the filters: capped, with the same "Show all N" toggle. */}
-      <div className="recent">
-        <FilterGroup
-          label="Recent"
-          options={recent.map((term) => ({ value: term }))}
-          selected={[]}
-          limit={5}
-          pressable={false}
-          onToggle={(term) => startSearch(term)}
-        />
-      </div>
+          {/* Kept in this browser only, so there are no accounts and no server state to manage.
+              Same row component as the filters: capped, with the same "Show all N" toggle. */}
+          <div className="recent">
+            <FilterGroup
+              label="Recent"
+              options={recent.map((term) => ({ value: term }))}
+              selected={[]}
+              limit={5}
+              pressable={false}
+              onToggle={(term) => startSearch(term)}
+            />
+          </div>
+        </>
+      )}
 
-      {notes.length > 0 && (
+      {/* Real anchors, not buttons: the server forwards /bookmarks, so ctrl-click and middle-click
+          genuinely open it in a new tab, and the address bar shows where you are. The handler only
+          takes over the plain click, to move pages without a reload.
+
+          "Bookmarked articles", not "Saved": this sits right under the recent searches, where
+          "Saved" would read as saved searches — a thing the app deliberately does not do. */}
+      {(route === 'bookmarks' || bookmarks.length > 0) && (
+        <p className="page-link">
+          {route === 'search' ? (
+            <a
+              className="page-action"
+              href={BOOKMARKS_PATH}
+              onClick={(event) => navigate(event, BOOKMARKS_PATH)}
+            >
+              Bookmarked articles ({bookmarks.length})
+            </a>
+          ) : (
+            // Back to the search that was on screen, not a bare "/", so the results are still
+            // there and nothing is fetched again.
+            <a href={backToSearch} onClick={(event) => navigate(event, backToSearch)}>
+              ← Back to search
+            </a>
+          )}
+        </p>
+      )}
+
+      {writeFailed && (
+        <p className="notes">
+          This browser would not store the change — saving is blocked or its storage is full.
+        </p>
+      )}
+
+      {notes.length > 0 && route === 'search' && (
         <p className="notes">
           Not included — {notes.map((note) => `${note.source}: ${note.reason}`).join(' · ')}
         </p>
       )}
 
-      {articles.length > 0 && (
+      {articles.length > 0 && route === 'search' && (
         <section className="filters">
           <FilterGroup
             label="Source"
@@ -230,7 +337,7 @@ export default function App() {
       {/* Caption for the results rather than another filter control, so it sits outside the panel.
           aria-live means a screen reader announces the new count when a chip is clicked; without
           it, filtering is silent. */}
-      {articles.length > 0 && (
+      {articles.length > 0 && route === 'search' && (
         <p className="summary" aria-live="polite">
           Showing {visible.length} of {articles.length}
           {hasAnyFilter(filters) && (
@@ -243,36 +350,45 @@ export default function App() {
 
       {/* role="status" announces the message to a screen reader; without it the wait between
           pressing Search and results appearing is silent. */}
-      {message && (
+      {message && route === 'search' && (
         <p className="empty" role="status" aria-busy={loading}>
           {message}
         </p>
       )}
 
+      {route === 'bookmarks' && (
+        <h2 className="page-heading">
+          Bookmarked articles
+          {bookmarks.length > 0 && <span className="count"> ({bookmarks.length})</span>}
+        </h2>
+      )}
+
+      {route === 'bookmarks' && bookmarks.length === 0 && (
+        <p className="empty">
+          No bookmarks yet — use Bookmark on an article to keep it here.
+        </p>
+      )}
+
       <ul className="results">
-        {visible.map((article, index) => (
-          <li className="card" key={`${article.url}-${index}`}>
-            <h2>
-              <a href={article.url} target="_blank" rel="noreferrer">
-                {article.title}
-              </a>
-            </h2>
-            <div className="meta">
-              {/* filter(Boolean) drops the fields a source does not provide, so there are never
-                  two dots in a row or a trailing one. */}
-              {[
-                article.source,
-                article.category,
-                article.author,
-                new Date(article.publishedAt).toLocaleDateString(),
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </div>
-            {/* Hacker News link posts have no body text, so summary is usually null. */}
-            {article.summary && <p>{article.summary}</p>}
-          </li>
-        ))}
+        {route === 'bookmarks'
+          ? bookmarks.map((bookmark) => (
+              <ResultCard
+                key={bookmark.url}
+                article={bookmark}
+                bookmarked
+                // This list holds bookmarks, not articles, so there is nothing to re-create from
+                // here — the button only ever removes.
+                onToggle={() => persist(removeBookmark(bookmarks, bookmark.url))}
+              />
+            ))
+          : visible.map((article, index) => (
+              <ResultCard
+                key={`${article.url}-${index}`}
+                article={article}
+                bookmarked={isBookmarked(bookmarks, article.url)}
+                onToggle={() => persist(toggleBookmark(bookmarks, article))}
+              />
+            ))}
       </ul>
 
       {/* Both providers' terms require their logo on any page showing their content, unaltered,
@@ -293,6 +409,60 @@ export default function App() {
         </div>
       </footer>
     </div>
+  )
+}
+
+/**
+ * What a card needs. The four required fields are exactly what a bookmark keeps; the richer ones
+ * are optional, so one card renders both a search result and a bookmarked article. A bookmark holds no
+ * summary, author or category on purpose — it is a citation, not a copy of the provider's content.
+ */
+type CardArticle = Bookmark & Partial<Pick<Article, 'author' | 'summary' | 'category'>>
+
+function ResultCard({
+  article,
+  bookmarked,
+  onToggle,
+}: {
+  article: CardArticle
+  bookmarked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <li className="card">
+      <div className="card-head">
+        <h2>
+          <a href={article.url} target="_blank" rel="noreferrer">
+            {article.title}
+          </a>
+        </h2>
+        {/* The label carries the state, so no aria-pressed: with both, a screen reader would
+            announce "Bookmarked, pressed". The filter chips are the other way round — their label
+            is a fixed facet value, so there the state can only come from aria-pressed. */}
+        <button
+          type="button"
+          className="chip bookmark"
+          data-bookmarked={bookmarked || undefined}
+          onClick={onToggle}
+        >
+          {bookmarked ? 'Bookmarked' : 'Bookmark'}
+        </button>
+      </div>
+      <div className="meta">
+        {/* filter(Boolean) drops the fields a source does not provide, so there are never
+            two dots in a row or a trailing one. */}
+        {[
+          article.source,
+          article.category,
+          article.author,
+          new Date(article.publishedAt).toLocaleDateString(),
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      </div>
+      {/* Hacker News link posts have no body text, so summary is usually null. */}
+      {article.summary && <p>{article.summary}</p>}
+    </li>
   )
 }
 

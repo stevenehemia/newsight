@@ -7,8 +7,11 @@
   --muted: #6b6257;
   --line: #f0e4d6;
   --line-strong: #dcc9b2;
-  /* Deep enough for white text on top (~5.9:1) and for links on white. A brighter
-     orange would look livelier but fails contrast at this text size. */
+  /* NOTE (measured 2026-09-21): the "~5.9:1" this comment used to claim is wrong. White on this
+     orange is 2.61:1, and this orange as link text on white is also 2.61:1 — both below the 4.5:1
+     WCAG AA needs for normal text. It affects the Search button, .link buttons, and pressed chips,
+     not just one element. Fixing it means darkening the accent; left as a deliberate open item
+     rather than silently restyling the palette. */
   --accent: #e08d3c;
   --accent-hover: #ff9933;
   --accent-soft: #fdead9;
@@ -128,6 +131,7 @@ body {
 .search input:focus-visible,
 .chip:focus-visible,
 .link:focus-visible,
+.page-link a:focus-visible,
 .search button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -239,6 +243,56 @@ body {
   text-decoration: underline;
 }
 
+/* ---------- page navigation ---------- */
+
+.page-link {
+  font-size: var(--small);
+  margin: 0 0 var(--space-4);
+}
+
+/* The back link stays a plain text link: getting out of a page should be available, not loud. */
+.page-link a {
+  color: var(--accent);
+}
+
+/* Outlined rather than filled: it needs to be found, not to compete with Search, which is the
+   page's primary action and the only thing carrying a solid accent fill. The tint and the accent
+   border do the lifting, so the type itself can sit at normal weight — a step above the chips at
+   --small, without reaching body size.
+
+   Dark text on the soft tint, not accent-on-tint: accent on --accent-soft measures 2.23:1, which
+   is unreadable. This pairing is 14.9:1. */
+.page-link a.page-action {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  display: inline-block;
+  /* Between --small (0.8125rem) and body size; no token, because one control needs it. */
+  font-size: 0.9375rem;
+  padding: var(--space-1) var(--space-4);
+  text-decoration: none;
+}
+
+.page-link a.page-action:hover {
+  border-color: var(--accent-hover);
+  background: var(--surface);
+}
+
+/* No rule above it: the back link sits directly over this, and a line between the two would read
+   as a separator between navigation and content that neither needs. */
+.page-heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}
+
+/* The number is context, not part of the title. */
+.page-heading .count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* ---------- messages ---------- */
 
 .notes {
@@ -275,7 +329,10 @@ body {
   padding-top: var(--space-4);
 }
 
-.summary + .empty {
+/* The rule on .empty exists to separate it from a search above it. A heading is already a
+   separator, so the two together would draw a line the page does not need. */
+.summary + .empty,
+.page-heading + .empty {
   border-top: none;
   padding-top: 0;
 }
@@ -292,11 +349,38 @@ body {
   border-color: var(--line-strong);
 }
 
+/* Title takes the space, the button keeps its own. align-items: start so a two-line headline does
+   not drag the button down the card with it. */
+.card-head {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
 .card h2 {
   font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.4;
   margin: 0;
+}
+
+/* flex-shrink: 0 so "Bookmarked" never wraps to two lines next to a long headline.
+   min-width holds the box at the longer label's size, so clicking does not widen the button and
+   nudge the headline beside it. Sized for "Bookmarked"; a fallback font can still exceed it, which
+   only makes the button wider, never clipped. */
+.bookmark {
+  flex-shrink: 0;
+  min-width: 6rem;
+  text-align: center;
+}
+
+/* Matches the selected chip. The label already says "Bookmarked", so this is reinforcement rather
+   than the only signal — colour alone would not carry it. */
+.bookmark[data-bookmarked] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
 }
 
 .card h2 a {
