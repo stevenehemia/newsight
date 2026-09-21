@@ -65,6 +65,22 @@ export default function App() {
   const canSearch = trimmed.length > 0
 
   /**
+   * Back to an empty search page, for when the back button lands on a bare "/". The URL says
+   * there is no search, so the page must agree rather than keep showing the previous results.
+   */
+  const clearSearch = useCallback(() => {
+    // A search still in flight would otherwise land afterwards and repopulate the page.
+    inFlight.current?.abort()
+    setQuery('')
+    setResults(null)
+    setSearched(null)
+    searchedFor.current = null
+    setFailure(null)
+    // runSearch's finally block skips this when it sees the abort, so it falls to us.
+    setLoading(false)
+  }, [])
+
+  /**
    * Runs a search for a term. Called from the form, a recent chip, a shared link and the back
    * button, so it takes the term rather than reading state. useCallback with no dependencies is
    * safe because it only touches setters and refs, which React keeps stable.
@@ -158,10 +174,7 @@ export default function App() {
       const term = queryFromSearch(window.location.search)
       setQuery(term)
       if (!term) {
-        setResults(null)
-        setSearched(null)
-        searchedFor.current = null
-        setFailure(null)
+        clearSearch()
       } else if (term !== searchedFor.current) {
         // Only when it is a different search. Otherwise returning from /bookmarks would refetch
         // results that are still on screen, for no gain and a call against every provider.
@@ -170,7 +183,7 @@ export default function App() {
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [runSearch])
+  }, [runSearch, clearSearch])
 
   /** Moves between the app's two pages without a reload, keeping the back button working. */
   function go(path: string) {
@@ -220,13 +233,20 @@ export default function App() {
   return (
     <div className="page">
       <header className="masthead">
-        <div className="brand">
+        {/* The brand goes home, as it does almost everywhere. Deliberately a plain link with no
+            click handler: going home is a reset, and a real navigation gives that for free and
+            exactly right — the browser discards all of this and React starts fresh. The cost is a
+            page reload, which is the correct trade for the one link whose job is starting over.
+
+            One link around both the mark and the wordmark rather than two: a screen reader should
+            hear "Newsight, link" once, and its accessible name comes from the heading text. */}
+        <a className="brand" href={SEARCH_PATH}>
           {/* Decorative: the name is right beside it, so a screen reader reading
               "Newsight logo, Newsight" would just be noise. */}
           <img className="logo" src={logo} alt="" />
           <h1>Newsight</h1>
-        </div>
-        <p className="tagline">Bringing news together, delivering insights faster.</p>
+        </a>
+        <p className="tagline">Bringing news together, delivering insights faster</p>
       </header>
 
       {/* The bookmarks page has no search box and no recent searches: "← Back to search" is the

@@ -66,10 +66,16 @@ body {
   padding-bottom: var(--space-4);
 }
 
+/* A link, but it should look exactly as it did before: colour and underline come from the anchor
+   defaults and have to be turned off. width: fit-content stops the flex container stretching the
+   full masthead, which would make the empty space beside the wordmark clickable too. */
 .brand {
   align-items: center;
+  color: inherit;
   display: flex;
   gap: var(--space-3);
+  text-decoration: none;
+  width: fit-content;
 }
 
 /* The logo is taller than it is wide, so fix the height and let the width follow. */
@@ -131,6 +137,7 @@ body {
 .search input:focus-visible,
 .chip:focus-visible,
 .link:focus-visible,
+.brand:focus-visible,
 .page-link a:focus-visible,
 .search button:focus-visible {
   outline: 2px solid var(--accent);
