@@ -18,6 +18,7 @@ import {
   hasAnyFilter,
   NO_FILTERS,
   presetOf,
+  sourceNotes,
   sourceOptions,
   toggle,
   type Article,
@@ -234,7 +235,7 @@ export default function App() {
   // round trip and nothing is fetched again.
   const backToSearch = urlForQuery(searched ?? '', SEARCH_PATH)
   const preset = presetOf(filters)
-  const notes = results ? [...results.skipped, ...results.unavailable] : []
+  const notes = sourceNotes(results ? [...results.skipped, ...results.unavailable] : [])
   const message = emptyMessage(
     { searched: searched !== null, loading, failure, total: articles.length, visible: visible.length },
     searched ?? '',
@@ -326,15 +327,11 @@ export default function App() {
 
       {writeFailed && (
         <p className="notes">
-          This browser would not store the change — saving is blocked or its storage is full.
+          Couldn't save your bookmarks. This browser is blocking storage or has run out of space.
         </p>
       )}
 
-      {notes.length > 0 && route === 'search' && (
-        <p className="notes">
-          Not included — {notes.map((note) => `${note.source}: ${note.reason}`).join(' · ')}
-        </p>
-      )}
+      {notes && route === 'search' && <p className="notes">{notes}</p>}
 
       {articles.length > 0 && route === 'search' && (
         <section className="filters">
@@ -397,7 +394,7 @@ export default function App() {
 
       {route === 'bookmarks' && bookmarks.length === 0 && (
         <p className="empty">
-          No bookmarks yet — use Bookmark on an article to keep it here.
+          No bookmarks yet. Bookmark an article to keep it here.
         </p>
       )}
 
