@@ -1,0 +1,146 @@
+<!doctype html>
+<!--
+  Served automatically by Spring Boot for any 404: DefaultErrorViewResolver looks for
+  static/error/<status>.html, so this file existing is the whole wiring.
+
+  Deliberately self-contained. Vite hashes the app's stylesheet (index-Czhi5Y9D.css), so a static
+  file cannot reference it without breaking on the next build — the few tokens it needs are inlined
+  instead. /favicon.png is safe to link because Vite copies public/ through unhashed.
+
+  It keeps the real 404 status, unlike forwarding unknown paths to the React app, which would
+  answer 200 on a page that says "not found" and would also render the UI for a mistyped /api path.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>Page not found · Newsight</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --brand: #1c2333;
+        --bg: #f4f2eb;
+        --text: #1a1a1a;
+        --muted: #6b6257;
+        --accent: #e08d3c;
+        --accent-hover: #ff9933;
+        --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-display: 'Sora', var(--font);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        line-height: 1.55;
+        margin: 0;
+      }
+
+      .page {
+        margin: 0 auto;
+        max-width: 46rem;
+        padding: 2rem 1rem;
+      }
+
+      .brand {
+        align-items: center;
+        color: inherit;
+        display: flex;
+        gap: 0.75rem;
+        text-decoration: none;
+        width: fit-content;
+      }
+
+      .logo {
+        height: 2.75rem;
+        width: auto;
+      }
+
+      .brand h1 {
+        border-left: 3px solid var(--accent);
+        color: var(--brand);
+        font-family: var(--font-display);
+        font-size: 3.2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+        margin: 0;
+        padding-left: 0.5rem;
+      }
+
+      .message {
+        border-top: 1px solid #f0e4d6;
+        margin-top: 1.5rem;
+        padding-top: 2rem;
+      }
+
+      .message h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+      }
+
+      .message p {
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
+
+      .home {
+        background: #fdead9;
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        color: var(--text);
+        display: inline-block;
+        font-size: 0.9375rem;
+        padding: 0.25rem 1rem;
+        text-decoration: none;
+      }
+
+      .home:hover {
+        background: #ffffff;
+        border-color: var(--accent-hover);
+      }
+
+      .home:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* The wordmark and the mark do not fit on one line on a narrow phone. */
+      @media (max-width: 30rem) {
+        .brand h1 {
+          font-size: 2.5rem;
+        }
+
+        .logo {
+          height: 2.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- Decorative: the wordmark beside it already names the app. -->
+      <a class="brand" href="/">
+        <img class="logo" src="/favicon.png" alt="" />
+        <h1>Newsight</h1>
+      </a>
+
+      <div class="message">
+        <h2>Page not found</h2>
+        <p>The page you're looking for doesn't exist. It may have moved, or the link may be wrong.</p>
+        <a class="home" href="/">Back to search</a>
+      </div>
+    </div>
+  </body>
+</html>
