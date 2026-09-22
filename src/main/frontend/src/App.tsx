@@ -3,8 +3,8 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type MouseEvent,
+  type SubmitEvent,
 } from 'react'
 import logo from './assets/newsight.png'
 import guardianLogo from './assets/powered-by-guardian.png'
@@ -50,8 +50,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [recent, setRecent] = useState<string[]>(() => readRecent())
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => readBookmarks())
-  // Bookmarks are their own page at /bookmarks, not a filtered view: filters narrow the current
-  // search, and a bookmarked article usually came from a different one.
+  // Bookmarks are their own page at /bookmarks, not a filtered view
   const [route, setRoute] = useState<Route>(() => routeOf(window.location.pathname))
   const [writeFailed, setWriteFailed] = useState(false)
   const inFlight = useRef<AbortController | null>(null)
@@ -101,9 +100,6 @@ export default function App() {
     setResults(null) // clear the previous results rather than showing them under "Searching…"
     setFailure(null)
     setLoading(true)
-    // Searching means you want results, even if you were looking at the bookmarks page. Covers
-    // the form, a recent chip, a shared link and the back button, since all four come through here.
-    setRoute('search')
     try {
       const response = await fetch(`/api/news/search?q=${encodeURIComponent(term)}`, {
         signal: controller.signal,
@@ -155,15 +151,19 @@ export default function App() {
     [runSearch],
   )
 
-  // …and the search itself runs once on arrival.
   useEffect(() => {
     if (started.current) return // StrictMode runs effects twice in development
     started.current = true
     const initial = queryFromSearch(window.location.search)
+    // /bookmarks?q=… is not a URL the app ever builds, but it can be typed, and searching on it
+    // would leave the page showing results while the address bar still said /bookmarks. The
+    // pathname is re-read rather than using `route` so this stays a mount-only effect instead
+    // of gaining a dependency that re-runs it.
+    //
     // runSearch sets state before its first await, which the rule flags. That is what this effect
     // is for: synchronising with two external systems, the URL and the API, once on mount.
     // oxlint-disable-next-line react/set-state-in-effect
-    if (initial) void runSearch(initial)
+    if (initial && routeOf(window.location.pathname) === 'search') void runSearch(initial)
   }, [runSearch])
 
   // Back and forward move between searches and the bookmarks page rather than leaving the app.
@@ -204,9 +204,9 @@ export default function App() {
     go(path)
   }
 
-  function onSubmit(event: FormEvent) {
+  function onSubmit(event: SubmitEvent) {
     event.preventDefault()
-    if (!canSearch) return // belt and braces; the button is disabled too
+    if (!canSearch) return
     startSearch(trimmed)
   }
 
@@ -224,8 +224,7 @@ export default function App() {
     setRecent([])
     clearRecent()
     // The whole row disappears along with the button that was just clicked, so focus would fall
-    // back to the body. Hand it to the search box, which is where someone clearing history is
-    // most likely headed next.
+    // back to the body.
     searchInput.current?.focus()
   }
 
@@ -245,12 +244,7 @@ export default function App() {
     <div className="page">
       <header className="masthead">
         {/* The brand goes home, as it does almost everywhere. Deliberately a plain link with no
-            click handler: going home is a reset, and a real navigation gives that for free and
-            exactly right — the browser discards all of this and React starts fresh. The cost is a
-            page reload, which is the correct trade for the one link whose job is starting over.
-
-            One link around both the mark and the wordmark rather than two: a screen reader should
-            hear "Newsight, link" once, and its accessible name comes from the heading text. */}
+            click handler. */}
         <a className="brand" href={SEARCH_PATH}>
           {/* Decorative: the name is right beside it, so a screen reader reading
               "Newsight logo, Newsight" would just be noise. */}
@@ -276,8 +270,7 @@ export default function App() {
               maxLength={200}
             />
             {/* Disabled while a search runs, to stop double submits, and while the box is empty,
-                so a blank search cannot be sent. The label stays "Search": the results area
-                already says "Searching…", and saying it twice is noise. */}
+                so a blank search cannot be sent */}
             <button type="submit" disabled={loading || !canSearch}>
               Search
             </button>
@@ -301,10 +294,7 @@ export default function App() {
 
       {/* Real anchors, not buttons: the server forwards /bookmarks, so ctrl-click and middle-click
           genuinely open it in a new tab, and the address bar shows where you are. The handler only
-          takes over the plain click, to move pages without a reload.
-
-          "Bookmarked articles", not "Saved": this sits right under the recent searches, where
-          "Saved" would read as saved searches — a thing the app deliberately does not do. */}
+          takes over the plain click, to move pages without a reload. */}
       {(route === 'bookmarks' || bookmarks.length > 0) && (
         <p className="page-link">
           {route === 'search' ? (
@@ -406,7 +396,7 @@ export default function App() {
                 article={bookmark}
                 bookmarked
                 // This list holds bookmarks, not articles, so there is nothing to re-create from
-                // here — the button only ever removes.
+                // here.
                 onToggle={() => persist(removeBookmark(bookmarks, bookmark.url))}
               />
             ))
@@ -421,8 +411,7 @@ export default function App() {
       </ul>
 
       {/* Both providers' terms require their logo on any page showing their content, unaltered,
-          and NYT's must link to developer.nytimes.com. Real alt text, not empty: these are
-          attribution, not decoration. */}
+          and NYT's must link to developer.nytimes.com. */}
       <footer className="attribution">
         <p>
           News from Hacker News, The New York Times and The Guardian. Headlines link to the original
@@ -442,9 +431,8 @@ export default function App() {
 }
 
 /**
- * What a card needs. The four required fields are exactly what a bookmark keeps; the richer ones
- * are optional, so one card renders both a search result and a bookmarked article. A bookmark holds no
- * summary, author or category on purpose — it is a citation, not a copy of the provider's content.
+ * What a card needs. The four required fields are exactly what a bookmark keeps. A bookmark holds
+ * no summary, author or category on purpose.
  */
 type CardArticle = Bookmark & Partial<Pick<Article, 'author' | 'summary' | 'category'>>
 
@@ -502,7 +490,7 @@ function ResultCard({
  */
 type Chip = { value: string; count?: number; id?: string }
 
-/** One row of chips: a label, the chips, and a toggle when there are more than `limit`. */
+// One row of chips: a label, the chips, and a toggle when there are more than `limit`.
 function FilterGroup({
   label,
   options,
@@ -523,14 +511,14 @@ function FilterGroup({
    */
   pressable?: boolean
   onToggle: (value: string, id?: string) => void
-  /** Given only by rows whose contents can be thrown away, which today is recent searches. */
+  /** Given only by rows whose contents can be thrown away, e.g. recent searches. */
   onClear?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   if (options.length === 0) return null
 
   const capped = limit !== undefined && !expanded && options.length > limit
-  // A selected chip beyond the cap stays visible, or there would be no way to switch it off.
+  // A selected chip beyond the cap stays visible.
   const shown = capped
     ? options.filter((option, index) => index < limit || selected.includes(option.value))
     : options
