@@ -5,8 +5,8 @@ import java.time.Instant;
 /**
  * A news article in Newsight's own shape.
  *
- * <p>Every external source gets translated into this record before it leaves the application, so
- * the frontend never sees a vendor's field names. Record components become JSON keys verbatim.
+ * <p>Every external source gets translated into this record before it leaves the application.
+ * Record components become JSON keys verbatim.
  *
  * <p>{@code category} is whatever section the provider filed the article under, kept in the
  * provider's own words rather than mapped to a shared vocabulary: the frontend builds its filter

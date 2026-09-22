@@ -20,9 +20,8 @@ public class NewsController {
     }
 
     /**
-     * Long enough for any real search, short enough that providers accept it: GNews caps queries at
-     * 200 characters, so a longer one would fail at the provider and be reported as that source
-     * being unavailable, which blames the wrong thing.
+     * Some providers only accept queries up to certain number of characters. So a long
+     * query would fail at the provider.
      */
     private static final int MAX_QUERY_LENGTH = 200;
 

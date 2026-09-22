@@ -48,8 +48,8 @@ public class HackerNewsSource implements NewsSource {
                             .retrieve()
                             .body(SearchResponse.class);
         } catch (RestClientException ex) {
-            // Gains a 429 branch it did not have before: Algolia is keyless and unmetered, so it is
-            // not expected to throttle, but reporting it correctly if it ever does costs nothing.
+            // Algolia is actually keyless and unmetered, so it is not expected
+            // to throttle, but reporting it correctly if it ever does costs nothing.
             throw NewsSourceException.from("Hacker News", ex);
         }
 

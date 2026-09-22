@@ -92,8 +92,6 @@ public class NytSource implements NewsSource {
                 title, source, author, summary, doc.webUrl(), publishedAt, blankToNull(doc.sectionName()));
     }
 
-    // The count lives at response.metadata.hits in live responses (the docs say meta.hits); not
-    // mapped until the coverage timeline needs it.
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SearchResponse(Result response) {}
 

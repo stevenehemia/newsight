@@ -18,9 +18,8 @@ import org.springframework.web.client.RestClientException;
 /**
  * Searches the Guardian Content API.
  *
- * <p>The only source so far that always carries a section, a summary and a byline, so it fills the
- * gaps Hacker News leaves. Asks for its most relevant matches with no date limit, matching the
- * ranking policy; {@link NewsService} sorts the merged list by date.
+ * <p>Asks for its most relevant matches with no date limit, matching the ranking policy;
+ * {@link NewsService} sorts the merged list by date.
  *
  * <p>Needs {@code GUARDIAN_API_KEY}; without it the source is switched off and makes no calls.
  *
