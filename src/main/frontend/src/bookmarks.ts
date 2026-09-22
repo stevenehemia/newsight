@@ -35,8 +35,7 @@ export function toBookmark(article: Article): Bookmark {
 
 /**
  * Identity is the url. Two providers covering the same story are two different pages, and saving
- * both is correct. (GNews serves one story under several urls, which would undermine this — it is
- * not implemented, and de-duplicating it belongs on the search side, not here.)
+ * both is correct.
  */
 export function isBookmarked(bookmarks: Bookmark[], url: string): boolean {
   return bookmarks.some((bookmark) => bookmark.url === url)
@@ -44,11 +43,10 @@ export function isBookmarked(bookmarks: Bookmark[], url: string): boolean {
 
 /**
  * Newest first, so the most recently saved sits at the top. Saving something already saved removes
- * it again: one control, both directions.
+ * it again.
  *
- * <p>There is deliberately **no cap**. Recent searches evict their oldest because the app adds
- * those by itself; a bookmark is something the user chose to keep, and dropping one to make room
- * would be losing their data without asking. A citation is a couple of hundred bytes against a
+ * <p>There is **no cap**. A bookmark is something the user chose to keep, and dropping one to make
+ * room would be losing their data without asking. A citation is a couple of hundred bytes against a
  * store of several megabytes, so the ceiling is not reachable in practice — and if it ever is,
  * {@link writeBookmarks} reports it rather than pretending the save worked.
  */
@@ -85,9 +83,8 @@ export function readBookmarks(): Bookmark[] {
 }
 
 /**
- * Reports whether the write landed, unlike recent searches, which are written silently. Bookmarking
- * is something the user deliberately did, so a full or blocked store has to be tellable — failing
- * quietly would leave them believing an article was saved when it was not.
+ * Reports whether the write landed. Since bookmarking is something the user deliberately did,
+ * failing quietly would leave them believing an article was saved when it was not.
  */
 export function writeBookmarks(bookmarks: Bookmark[]): boolean {
   try {

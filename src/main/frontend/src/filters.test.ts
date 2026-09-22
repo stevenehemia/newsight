@@ -5,7 +5,9 @@ import {
   dateOptions,
   emptyMessage,
   failureFor,
+  listOf,
   NO_FILTERS,
+  sourceNotes,
   sourceOptions,
   toggle,
   type Article,
@@ -177,12 +179,12 @@ describe('emptyMessage', () => {
     const messageFor = (failure: Failure) =>
       emptyMessage({ ...searched, failure, total: 0, visible: 0 }, 'climate')
 
-    expect(messageFor('invalid-query')).toBe('That search could not be read. Try different words.')
+    expect(messageFor('invalid-query')).toBe("That search couldn't be read. Try different words.")
     expect(messageFor('sources-unavailable')).toBe(
       'No news sources are responding right now. Please try again shortly.',
     )
     expect(messageFor('network')).toBe(
-      'Could not reach Newsight. Check your connection and try again.',
+      "Couldn't reach Newsight. Check your connection and try again.",
     )
     expect(messageFor('unknown')).toBe('Something went wrong. Please try again.')
 
@@ -273,3 +275,58 @@ function article(
     category,
   }
 }
+
+describe('listOf', () => {
+  it('reads as a sentence rather than a delimited list', () => {
+    expect(listOf(['The Guardian'])).toBe('The Guardian')
+    expect(listOf(['The Guardian', 'NYT'])).toBe('The Guardian and NYT')
+    expect(listOf(['The Guardian', 'NYT', 'Hacker News'])).toBe(
+      'The Guardian, NYT and Hacker News',
+    )
+  })
+
+  it('survives an empty list', () => {
+    expect(listOf([])).toBe('')
+  })
+})
+
+describe('sourceNotes', () => {
+  const throttled = { source: 'The New York Times', reason: 'rate limited' }
+  const down = { source: 'The Guardian', reason: 'temporarily unavailable' }
+
+  it('says nothing when every source answered', () => {
+    expect(sourceNotes([])).toBeNull()
+  })
+
+  it('tells the reader to wait only when waiting will help', () => {
+    expect(sourceNotes([throttled])).toBe(
+      "We've asked The New York Times too often just now. Try again in a minute.",
+    )
+  })
+
+  it('does not guess at a cause it was not told', () => {
+    expect(sourceNotes([down])).toBe("Couldn't get results from The Guardian just now.")
+  })
+
+  it('groups by cause rather than listing each source separately', () => {
+    expect(sourceNotes([throttled, down])).toBe(
+      "We've asked The New York Times too often just now. Try again in a minute. " +
+        "Couldn't get results from The Guardian just now.",
+    )
+  })
+
+  it('folds several sources with the same cause into one sentence', () => {
+    const also = { source: 'Hacker News', reason: 'temporarily unavailable' }
+
+    expect(sourceNotes([down, also])).toBe(
+      "Couldn't get results from The Guardian and Hacker News just now.",
+    )
+  })
+
+  it('keeps the provider wording out of the UI', () => {
+    const shown = sourceNotes([throttled, down]) ?? ''
+
+    expect(shown).not.toContain('rate limited')
+    expect(shown).not.toContain('temporarily unavailable')
+  })
+})

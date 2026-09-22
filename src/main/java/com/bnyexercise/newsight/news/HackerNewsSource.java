@@ -1,9 +1,10 @@
 package com.bnyexercise.newsight.news;
 
+import static com.bnyexercise.newsight.news.ProviderValues.parseInstant;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
@@ -47,8 +48,9 @@ public class HackerNewsSource implements NewsSource {
                             .retrieve()
                             .body(SearchResponse.class);
         } catch (RestClientException ex) {
-            throw new NewsSourceException(
-                    NewsSourceException.UNAVAILABLE, "Hacker News request failed: " + ex.getMessage(), ex);
+            // Algolia is actually keyless and unmetered, so it is not expected
+            // to throttle, but reporting it correctly if it ever does costs nothing.
+            throw NewsSourceException.from("Hacker News", ex);
         }
 
         if (response == null || response.hits() == null) {
@@ -78,17 +80,6 @@ public class HackerNewsSource implements NewsSource {
                 url,
                 publishedAt,
                 null);
-    }
-
-    private Instant parseInstant(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException ex) {
-            return null;
-        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -2,8 +2,7 @@
  * Filtering for the results already on screen. Nothing here calls the API: filters narrow the
  * articles a search returned.
  *
- * <p>Kept apart from App.tsx so it can be tested as plain functions, and so `now` can be passed in
- * rather than read from the clock, which would make date tests depend on when they run.
+ * <p>Kept apart from App.tsx so it can be tested as plain functions.
  */
 
 /** Mirrors the Article record returned by GET /api/news/search. */
@@ -26,7 +25,6 @@ export type SourceNote = {
 /** Mirrors the SearchResults record returned by GET /api/news/search. */
 export type SearchResults = {
   articles: Article[]
-  skipped: SourceNote[]
   unavailable: SourceNote[]
 }
 
@@ -75,7 +73,7 @@ export function applyFilters(articles: Article[], filters: Filters, now = new Da
 }
 
 /**
- * Counts for one facet are taken over the articles the OTHER facets allow, ignoring this facet's
+ * Counts for one facet are taken over the articles the other facets allow, ignoring this facet's
  * own selection. So a count always says how many articles picking that chip would leave, and
  * picking a second value within the same facet widens rather than narrows.
  */
@@ -153,11 +151,11 @@ export type SearchState = {
 const FAILURE_MESSAGES: Record<Failure, string> = {
   // The UI blocks blank searches, so a 400 means something we did not anticipate rather than an
   // empty box — hence "try different words" rather than "type something".
-  'invalid-query': 'That search could not be read. Try different words.',
+  'invalid-query': "That search couldn't be read. Try different words.",
   // Every source failed. Worth saying so plainly: it is temporary and not the user's doing.
   'sources-unavailable': 'No news sources are responding right now. Please try again shortly.',
   // fetch threw, so the request never got an answer: the server, the network or the browser.
-  network: 'Could not reach Newsight. Check your connection and try again.',
+  network: "Couldn't reach Newsight. Check your connection and try again.",
   unknown: 'Something went wrong. Please try again.',
 }
 
@@ -169,6 +167,42 @@ export function emptyMessage(state: SearchState, query: string): string | null {
   if (state.total === 0) return `No articles found for “${query}”.`
   if (state.visible === 0) return 'No articles match these filters.'
   return null
+}
+
+/**
+ * The reason a source sends when it refused us for asking too often, from NewsSourceException on
+ * the Java side. Only NYT and the Guardian map a 429 to it; everything else, including a bug in a
+ * source, arrives as the generic reason — which is why the copy below never guesses at a cause.
+ */
+const RATE_LIMITED = 'rate limited'
+
+/**
+ * What to say when some sources contributed nothing. Grouped by cause rather than listed per
+ * source, because the only difference that matters to a reader is whether waiting a moment will
+ * help. The provider's own wording ("rate limited", "temporarily unavailable") stays out of the UI.
+ *
+ * <p>Note this can render alongside the "no news sources are responding" message, since a total
+ * outage returns 503 *and* the per-source reasons — so neither sentence may assume the other is
+ * absent, and only the rate-limited one carries an instruction.
+ */
+export function sourceNotes(notes: SourceNote[]): string | null {
+  const throttled = notes.filter((note) => note.reason === RATE_LIMITED).map((note) => note.source)
+  const silent = notes.filter((note) => note.reason !== RATE_LIMITED).map((note) => note.source)
+
+  const sentences: string[] = []
+  if (throttled.length > 0) {
+    // NYT allows 5 calls per minute.
+    sentences.push(`We've asked ${listOf(throttled)} too often just now. Try again in a minute.`)
+  }
+  if (silent.length > 0) {
+    sentences.push(`Couldn't get results from ${listOf(silent)} just now.`)
+  }
+  return sentences.length > 0 ? sentences.join(' ') : null
+}
+
+export function listOf(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
 export function toggle(list: string[], value: string): string[] {
