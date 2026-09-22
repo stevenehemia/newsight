@@ -235,7 +235,7 @@ export default function App() {
   // round trip and nothing is fetched again.
   const backToSearch = urlForQuery(searched ?? '', SEARCH_PATH)
   const preset = presetOf(filters)
-  const notes = sourceNotes(results ? [...results.skipped, ...results.unavailable] : [])
+  const notes = sourceNotes(results?.unavailable ?? [])
   const message = emptyMessage(
     { searched: searched !== null, loading, failure, total: articles.length, visible: visible.length },
     searched ?? '',

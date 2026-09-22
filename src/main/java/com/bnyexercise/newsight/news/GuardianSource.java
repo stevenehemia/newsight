@@ -1,19 +1,19 @@
 package com.bnyexercise.newsight.news;
 
+import static com.bnyexercise.newsight.news.ProviderValues.blankToNull;
+import static com.bnyexercise.newsight.news.ProviderValues.parseInstant;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Searches the Guardian Content API.
@@ -74,15 +74,8 @@ public class GuardianSource implements NewsSource {
                                     .build(query, apiKey))
                             .retrieve()
                             .body(SearchResponse.class);
-        } catch (RestClientResponseException ex) {
-            String reason =
-                    ex.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)
-                            ? NewsSourceException.RATE_LIMITED
-                            : NewsSourceException.UNAVAILABLE;
-            throw new NewsSourceException(reason, "Guardian request failed: " + ex.getMessage(), ex);
         } catch (RestClientException ex) {
-            throw new NewsSourceException(
-                    NewsSourceException.UNAVAILABLE, "Guardian request failed: " + ex.getMessage(), ex);
+            throw NewsSourceException.from("Guardian", ex);
         }
 
         if (body == null || body.response() == null || body.response().results() == null) {
@@ -114,21 +107,6 @@ public class GuardianSource implements NewsSource {
                 result.webUrl(),
                 publishedAt,
                 blankToNull(result.sectionName()));
-    }
-
-    private static Instant parseInstant(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException ex) {
-            return null;
-        }
-    }
-
-    private static String blankToNull(String value) {
-        return StringUtils.hasText(value) ? value : null;
     }
 
     // The total count is at response.total; not mapped until something needs it.

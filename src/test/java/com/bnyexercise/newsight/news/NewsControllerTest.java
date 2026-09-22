@@ -39,7 +39,6 @@ class NewsControllerTest {
                                                 "https://example.com/spring-boot-4",
                                                 Instant.parse("2026-09-17T10:15:30Z"),
                                                 null)),
-                                List.of(),
                                 List.of()));
 
         mockMvc.perform(get("/api/news/search").param("q", "spring"))
@@ -52,7 +51,7 @@ class NewsControllerTest {
 
     @Test
     void returnsEmptyArrayWhenNothingFound() throws Exception {
-        given(newsService.search(any())).willReturn(new SearchResults(List.of(), List.of(), List.of()));
+        given(newsService.search(any())).willReturn(new SearchResults(List.of(), List.of()));
 
         mockMvc.perform(get("/api/news/search").param("q", "zzzznomatches"))
                 .andExpect(status().isOk())
@@ -65,7 +64,6 @@ class NewsControllerTest {
         given(newsService.search(any()))
                 .willReturn(
                         new SearchResults(
-                                List.of(),
                                 List.of(),
                                 List.of(new SearchResults.SourceNote("The New York Times", "rate limited"))));
 
@@ -81,7 +79,6 @@ class NewsControllerTest {
                 .willThrow(
                         new NewsUnavailableException(
                                 new SearchResults(
-                                        List.of(),
                                         List.of(),
                                         List.of(
                                                 new SearchResults.SourceNote("The Guardian", "rate limited"),
@@ -105,7 +102,7 @@ class NewsControllerTest {
 
     @Test
     void acceptsAQueryAtTheLimit() throws Exception {
-        given(newsService.search(any())).willReturn(new SearchResults(List.of(), List.of(), List.of()));
+        given(newsService.search(any())).willReturn(new SearchResults(List.of(), List.of()));
 
         mockMvc.perform(get("/api/news/search").param("q", "x".repeat(200)))
                 .andExpect(status().isOk());

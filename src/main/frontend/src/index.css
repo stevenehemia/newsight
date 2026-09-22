@@ -312,9 +312,12 @@ body {
   padding: var(--space-2) var(--space-3);
 }
 
+/* The rule separates the message from whatever sits above it. A summary line or a page heading is
+   already a separator, so those two cases switch it off further down. */
 .empty {
+  border-top: 1px solid var(--line);
   color: var(--muted);
-  padding: var(--space-6) 0;
+  padding: var(--space-4) 0 var(--space-6);
   text-align: center;
 }
 
@@ -327,13 +330,6 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-/* When a search found nothing there is no summary line, so the message carries the rule instead.
-   If both are on the page (filters hid everything), the summary above it already has one. */
-.empty {
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-4);
 }
 
 /* The rule on .empty exists to separate it from a search above it. A heading is already a

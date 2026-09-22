@@ -1,5 +1,9 @@
 package com.bnyexercise.newsight.news;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+
 /**
  * A news source could not answer: an HTTP error, a timeout, or a response it could not read.
  *
@@ -19,6 +23,25 @@ public class NewsSourceException extends RuntimeException {
     public NewsSourceException(String reason, String message, Throwable cause) {
         super(message, cause);
         this.reason = reason;
+    }
+
+    /**
+     * Wraps whatever the HTTP client threw, which every source does identically: a 429 is the one
+     * the user can act on, so it is named separately; everything else — a 4xx, a 5xx, a timeout, a
+     * DNS failure — is indistinguishable to them.
+     *
+     * @param provider names the source in the log message only, never in {@link #reason()}
+     */
+    static NewsSourceException from(String provider, RestClientException cause) {
+        String reason =
+                cause instanceof RestClientResponseException response
+                                && response.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)
+                        ? RATE_LIMITED
+                        : UNAVAILABLE;
+        // getMessage(), not the exception itself: Spring's messages carry no query string, and the
+        // API key travels in one for every keyed provider.
+        return new NewsSourceException(
+                reason, provider + " request failed: " + cause.getMessage(), cause);
     }
 
     public String reason() {

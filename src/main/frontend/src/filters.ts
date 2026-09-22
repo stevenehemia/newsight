@@ -26,7 +26,6 @@ export type SourceNote = {
 /** Mirrors the SearchResults record returned by GET /api/news/search. */
 export type SearchResults = {
   articles: Article[]
-  skipped: SourceNote[]
   unavailable: SourceNote[]
 }
 

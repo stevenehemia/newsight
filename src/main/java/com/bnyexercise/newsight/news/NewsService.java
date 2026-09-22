@@ -45,9 +45,9 @@ public class NewsService {
         }
         if (!sources.isEmpty() && unavailable.size() == sources.size()) {
             // No articles, but the reasons still matter to the user.
-            throw new NewsUnavailableException(new SearchResults(List.of(), List.of(), unavailable));
+            throw new NewsUnavailableException(new SearchResults(List.of(), unavailable));
         }
         articles.sort(NEWEST_FIRST);
-        return new SearchResults(articles, List.of(), unavailable);
+        return new SearchResults(articles, unavailable);
     }
 }
