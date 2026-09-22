@@ -2,8 +2,7 @@
  * Filtering for the results already on screen. Nothing here calls the API: filters narrow the
  * articles a search returned.
  *
- * <p>Kept apart from App.tsx so it can be tested as plain functions, and so `now` can be passed in
- * rather than read from the clock, which would make date tests depend on when they run.
+ * <p>Kept apart from App.tsx so it can be tested as plain functions.
  */
 
 /** Mirrors the Article record returned by GET /api/news/search. */
@@ -74,7 +73,7 @@ export function applyFilters(articles: Article[], filters: Filters, now = new Da
 }
 
 /**
- * Counts for one facet are taken over the articles the OTHER facets allow, ignoring this facet's
+ * Counts for one facet are taken over the articles the other facets allow, ignoring this facet's
  * own selection. So a count always says how many articles picking that chip would leave, and
  * picking a second value within the same facet widens rather than narrows.
  */
@@ -192,8 +191,7 @@ export function sourceNotes(notes: SourceNote[]): string | null {
 
   const sentences: string[] = []
   if (throttled.length > 0) {
-    // "We've", not "you have": the quota is shared by everyone using the deployed demo, so this is
-    // not something the reader did. A minute is the real answer — NYT allows 5 calls per minute.
+    // NYT allows 5 calls per minute.
     sentences.push(`We've asked ${listOf(throttled)} too often just now. Try again in a minute.`)
   }
   if (silent.length > 0) {
@@ -202,7 +200,6 @@ export function sourceNotes(notes: SourceNote[]): string | null {
   return sentences.length > 0 ? sentences.join(' ') : null
 }
 
-/** "A", "A and B", "A, B and C" — what a sentence needs, which join(', ') does not give. */
 export function listOf(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ''
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`

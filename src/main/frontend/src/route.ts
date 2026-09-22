@@ -2,8 +2,7 @@
  * Which page the URL is asking for.
  *
  * <p>Hand-rolled rather than a router library: there are two pages, and `url.ts` already keeps the
- * search term in the URL with `pushState` and `popstate`. A router would add a dependency to do
- * the same job.
+ * search term in the URL with `pushState` and `popstate`.
  *
  * <p>These are real paths, so **the server has to forward them to `index.html`** — see
  * `ClientRoutes` on the Java side. A query string like `?q=climate` needs no such help, because it

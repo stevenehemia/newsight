@@ -40,10 +40,8 @@ export function writeRecent(recent: string[]): void {
   }
 }
 
-/**
- * Forgets every recent search. Removes the key rather than storing an empty list, so clearing
- * leaves nothing behind — the point of the control is that the history is gone.
- */
+
+/** Forgets every recent search. Removes the key rather than storing an empty list. */
 export function clearRecent(): void {
   try {
     localStorage.removeItem(KEY)
